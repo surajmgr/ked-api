@@ -1,0 +1,40 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.2.6/schema.json",
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120,
+    "lineEnding": "lf",
+    "bracketSpacing": true,
+    "bracketSameLine": false,
+    "useEditorconfig": false,
+    "attributePosition": "auto"
+  },
+  "javascript": {
+    "formatter": {
+      "arrowParentheses": "always",
+      "bracketSameLine": false,
+      "bracketSpacing": true,
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "single",
+      "quoteProperties": "asNeeded",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "json": {
+    "formatter": {
+      "trailingCommas": "none"
+    }
+  },
+  "linter": {
+    "enabled": true
+  },
+  "assist": {
+    "enabled": false
+  },
+  "files": {
+    "includes": ["src/**/*.ts", "src/**/*.tsx", "wrangler.toml"]
+  }
+}

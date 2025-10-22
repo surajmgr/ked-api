@@ -1,0 +1,1 @@
+ALTER TABLE "example" ALTER COLUMN "id" SET DATA TYPE varchar(24);

@@ -1,9 +1,9 @@
-import { Hono } from "hono";
+import init from './lib/utils/init';
+import configureOpenAPI from './lib/utils/openapi';
+import configureRoutes from '@/routes/index.route';
 
-const app = new Hono<{ Bindings: CloudflareBindings }>();
-
-app.get("/message", (c) => {
-  return c.text("Hello Hono!");
-});
+const app = init();
+configureOpenAPI(app);
+configureRoutes(app);
 
 export default app;
