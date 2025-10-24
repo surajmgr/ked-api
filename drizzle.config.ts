@@ -10,7 +10,7 @@ const DATABASE_URL = getDevDatabaseUrl();
 
 export default defineConfig({
   dialect: "postgresql",
-  schema: "./src/db/schema.ts",
+  schema: "./src/db/schema/index.ts",
   dbCredentials: {
     url: DATABASE_URL
   },
