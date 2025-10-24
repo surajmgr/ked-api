@@ -8,7 +8,7 @@ import { books, topics, subtopics, notes } from './content';
 export const follows = pgTable(
   'follows',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     followerId: text('follower_id').notNull(),
     followingId: text('following_id').notNull(),
     createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
@@ -32,7 +32,7 @@ export const updateFollowSchema = insertFollowSchema.partial();
 export const contentFollows = pgTable(
   'content_follows',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     userId: text('user_id').notNull(),
     bookId: text('book_id').references(() => books.id, { onDelete: 'cascade' }),
     topicId: text('topic_id').references(() => topics.id, {
@@ -60,7 +60,7 @@ export const updateContentFollowSchema = insertContentFollowSchema.partial();
 export const notifications = pgTable(
   'notifications',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     userId: text('user_id').notNull(),
     type: notificationTypeEnum('type').notNull(),
     title: text('title').notNull(),
@@ -91,7 +91,7 @@ export const updateNotificationSchema = insertNotificationSchema.partial();
 export const notePurchases = pgTable(
   'note_purchases',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     noteId: text('note_id')
       .notNull()
       .references(() => notes.id, { onDelete: 'cascade' }),
@@ -117,7 +117,7 @@ export const updateNotePurchaseSchema = insertNotePurchaseSchema.partial();
 export const noteRatings = pgTable(
   'note_ratings',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     noteId: text('note_id')
       .notNull()
       .references(() => notes.id, { onDelete: 'cascade' }),

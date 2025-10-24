@@ -1,15 +1,16 @@
-import { pgTable, text, timestamp, boolean, integer, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, text, boolean, integer, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { cuid2 } from 'drizzle-cuid2/postgres';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { voteTypeEnum } from './enums';
 import { topics, subtopics } from './content';
+import { timestampMs } from './utils';
 
 // ==================== Question Table ====================
 export const questions = pgTable(
   'questions',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     slug: text('slug').notNull().unique(),
     title: text('title').notNull(),
     content: text('content').notNull(),
@@ -25,11 +26,8 @@ export const questions = pgTable(
     votesCount: integer('votes_count').notNull().default(0),
     answersCount: integer('answers_count').notNull().default(0),
     tags: text('tags').array(),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'date' })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
     index('idx_question_slug').on(table.slug),
@@ -57,7 +55,7 @@ export const updateQuestionSchema = insertQuestionSchema.partial();
 export const answers = pgTable(
   'answers',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     content: text('content').notNull(),
     questionId: text('question_id')
       .notNull()
@@ -65,11 +63,8 @@ export const answers = pgTable(
     authorId: text('author_id').notNull(),
     isAccepted: boolean('is_accepted').notNull().default(false),
     votesCount: integer('votes_count').notNull().default(0),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'date' })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
     index('idx_answer_question').on(table.questionId),
@@ -90,7 +85,7 @@ export const updateAnswerSchema = insertAnswerSchema.partial();
 export const votes = pgTable(
   'votes',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     userId: text('user_id').notNull(),
     questionId: text('question_id').references(() => questions.id, {
       onDelete: 'cascade',
@@ -99,7 +94,8 @@ export const votes = pgTable(
       onDelete: 'cascade',
     }),
     voteType: voteTypeEnum('vote_type').notNull(),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
     uniqueIndex('idx_vote_user_question').on(table.userId, table.questionId),
@@ -121,18 +117,15 @@ export const updateVoteSchema = insertVoteSchema.partial();
 export const comments = pgTable(
   'comments',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     noteId: text('note_id')
       .notNull()
       .references(() => questions.id, { onDelete: 'cascade' }),
     authorId: text('author_id').notNull(),
     content: text('content').notNull(),
     parentCommentId: text('parent_comment_id'),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'date' })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
     index('idx_comment_note').on(table.noteId),

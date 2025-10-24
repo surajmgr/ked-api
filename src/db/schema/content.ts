@@ -1,24 +1,23 @@
-import { pgTable, text, timestamp, boolean, integer, index, uniqueIndex, real } from 'drizzle-orm/pg-core';
+import { pgTable, text, boolean, integer, index, uniqueIndex, real } from 'drizzle-orm/pg-core';
 import { cuid2 } from 'drizzle-cuid2/postgres';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { difficultyLevelEnum, contentTypeEnum } from './enums';
+import z from 'zod';
+import { timestampMs } from './utils';
 
 // ==================== Grade Table ====================
 export const grades = pgTable(
   'grades',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     name: text('name').notNull().unique(),
     slug: text('slug').notNull().unique(),
     description: text('description'),
     orderIndex: integer('order_index').notNull().default(0),
     isActive: boolean('is_active').notNull().default(true),
     createdBy: text('created_by').notNull(),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'date' })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
     index('idx_grade_active_order').on(table.isActive, table.orderIndex),
@@ -38,7 +37,7 @@ export const updateGradeSchema = insertGradeSchema.partial();
 export const books = pgTable(
   'books',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     slug: text('slug').notNull().unique(),
     title: text('title').notNull(),
     description: text('description'),
@@ -49,11 +48,8 @@ export const books = pgTable(
     difficultyLevel: difficultyLevelEnum('difficulty_level').notNull().default('BEGINNER'),
     isActive: boolean('is_active').notNull().default(true),
     createdBy: text('created_by').notNull(),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'date' })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
     index('idx_book_active').on(table.isActive),
@@ -64,21 +60,29 @@ export const books = pgTable(
 );
 
 export const selectBookSchema = createSelectSchema(books);
+export const selectBookSchemaWithGradeBook = selectBookSchema.extend({
+  gradeId: z.string().nullable(),
+  gradeName: z.string().nullable(),
+});
 export const insertBookSchema = createInsertSchema(books, {
   title: (s) => s.min(1).max(255),
-  slug: (s) => s.min(1).max(255),
   description: (s) => s.max(2000).optional(),
   author: (s) => s.max(255).optional(),
   isbn: (s) => s.max(20).optional(),
+  difficultyLevel: (s) => s.optional(),
   category: (s) => s.max(100).optional(),
-}).omit({ id: true, createdAt: true, updatedAt: true });
+})
+  .omit({ id: true, createdAt: true, updatedAt: true, slug: true })
+  .extend({
+    gradeId: z.string().optional(),
+  });
 export const updateBookSchema = insertBookSchema.partial();
 
 // ==================== GradeBook Junction Table ====================
 export const gradeBooks = pgTable(
   'grade_books',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     gradeId: text('grade_id')
       .notNull()
       .references(() => grades.id, { onDelete: 'cascade' }),
@@ -88,11 +92,8 @@ export const gradeBooks = pgTable(
     orderIndex: integer('order_index').notNull().default(0),
     isActive: boolean('is_active').notNull().default(true),
     createdBy: text('created_by').notNull(),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'date' })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
     uniqueIndex('idx_gradebook_unique').on(table.gradeId, table.bookId),
@@ -114,7 +115,7 @@ export const updateGradeBookSchema = insertGradeBookSchema.partial();
 export const topics = pgTable(
   'topics',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     title: text('title').notNull(),
     slug: text('slug').notNull().unique(),
     description: text('description'),
@@ -124,11 +125,8 @@ export const topics = pgTable(
     orderIndex: integer('order_index').notNull().default(0),
     isActive: boolean('is_active').notNull().default(true),
     createdBy: text('created_by').notNull(),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'date' })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
     uniqueIndex('idx_topic_book_order').on(table.bookId, table.orderIndex),
@@ -150,7 +148,7 @@ export const updateTopicSchema = insertTopicSchema.partial();
 export const subtopics = pgTable(
   'subtopics',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     slug: text('slug').notNull().unique(),
     title: text('title').notNull(),
     description: text('description'),
@@ -160,11 +158,8 @@ export const subtopics = pgTable(
     orderIndex: integer('order_index').notNull().default(0),
     isActive: boolean('is_active').notNull().default(true),
     createdBy: text('created_by').notNull(),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'date' })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
     uniqueIndex('idx_subtopic_topic_order').on(table.topicId, table.orderIndex),
@@ -186,7 +181,7 @@ export const updateSubtopicSchema = insertSubtopicSchema.partial();
 export const notes = pgTable(
   'notes',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     slug: text('slug').notNull().unique(),
     title: text('title').notNull(),
     content: text('content').notNull(),
@@ -205,11 +200,8 @@ export const notes = pgTable(
     ratingAvg: real('rating_avg').notNull().default(0.0),
     ratingCount: integer('rating_count').notNull().default(0),
     fileUrl: text('file_url'),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'date' })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
     index('idx_note_slug').on(table.slug),
@@ -228,6 +220,6 @@ export const insertNoteSchema = createInsertSchema(notes, {
   slug: (s) => s.min(1).max(255),
   content: (s) => s.min(1),
   price: (s) => s.min(0),
-  fileUrl: (s) => s.url().optional(),
+  fileUrl: () => z.url(),
 }).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateNoteSchema = insertNoteSchema.partial();

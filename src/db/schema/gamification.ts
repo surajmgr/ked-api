@@ -3,12 +3,13 @@ import { cuid2 } from 'drizzle-cuid2/postgres';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { criteriaTypeEnum, categoryTypeEnum, activityTypeEnum } from './enums';
+import { timestampMs } from './utils';
 
 // ==================== Rank Table ====================
 export const ranks = pgTable(
   'ranks',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     name: text('name').notNull().unique(),
     minReputation: integer('min_reputation').notNull(),
     maxReputation: integer('max_reputation'),
@@ -16,7 +17,8 @@ export const ranks = pgTable(
     color: text('color').notNull().default('#808080'),
     icon: text('icon'),
     privileges: text('privileges').array(),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
     index('idx_rank_name').on(table.name),
@@ -38,7 +40,7 @@ export const updateRankSchema = insertRankSchema.partial();
 export const achievements = pgTable(
   'achievements',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     name: text('name').notNull(),
     description: text('description'),
     badgeIcon: text('badge_icon'),
@@ -46,7 +48,8 @@ export const achievements = pgTable(
     criteriaType: criteriaTypeEnum('criteria_type').notNull(),
     criteriaValue: integer('criteria_value').notNull(),
     category: categoryTypeEnum('category').notNull().default('GENERAL'),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
     index('idx_achievement_criteria').on(table.criteriaType),
@@ -67,7 +70,7 @@ export const updateAchievementSchema = insertAchievementSchema.partial();
 export const userAchievements = pgTable(
   'user_achievements',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     userId: text('user_id').notNull(),
     achievementId: text('achievement_id')
       .notNull()
@@ -90,13 +93,14 @@ export const updateUserAchievementSchema = insertUserAchievementSchema.partial()
 export const userActivities = pgTable(
   'user_activities',
   {
-    id: cuid2('id').primaryKey(),
+    id: cuid2('id').defaultRandom().primaryKey(),
     userId: text('user_id').notNull(),
     activityType: activityTypeEnum('activity_type').notNull(),
     pointsEarned: integer('points_earned').notNull().default(0),
     referenceId: text('reference_id'),
     referenceType: text('reference_type'),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
     index('idx_user_activity_user').on(table.userId),

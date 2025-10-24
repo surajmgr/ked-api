@@ -9,3 +9,5 @@ export async function getClient({ HYPERDRIVE }: { HYPERDRIVE: Hyperdrive }) {
   });
   return drizzle({ client, schema });
 }
+
+export type ClientType = Awaited<ReturnType<typeof getClient>>;
