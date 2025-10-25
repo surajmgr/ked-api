@@ -10,6 +10,16 @@ export const idParamsSchema = z.object({
   }),
 });
 
+export const slugParamsSchema = z.object({
+  slug: z.string().openapi({
+    param: {
+      name: 'slug',
+      in: 'path',
+    },
+    example: 'slug',
+  }),
+});
+
 export const paginationQuerySchema = z.object({
   page: z
     .number()

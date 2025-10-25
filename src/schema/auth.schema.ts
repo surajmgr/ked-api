@@ -29,15 +29,17 @@ const userSchema = z.object({
   username: z.string().optional(),
   displayUsername: z.string().optional(),
   isAnonymous: z.boolean().nullable().optional(),
-  role: roleSchema,
+  role: roleSchema.nullable(),
   twoFactorEnabled: z.boolean().optional(),
   createdAt: IsoDateString,
   updatedAt: IsoDateString,
 });
 
-export const authSessionResponseSchema = z.object({
-  session: sessionSchema,
-  user: userSchema,
-});
+export const authSessionResponseSchema = z
+  .object({
+    session: sessionSchema,
+    user: userSchema,
+  })
+  .nullable();
 
 export type AuthSessionResponseSchema = z.infer<typeof authSessionResponseSchema>;

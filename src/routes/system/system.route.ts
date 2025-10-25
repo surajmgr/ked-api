@@ -1,4 +1,4 @@
-import { jsonContentBase } from '@/lib/openapi/helper';
+import { jsonContentBase, jsxContent } from '@/lib/openapi/helper';
 import { GLOBAL_RESPONSES } from '@/lib/openapi/responses';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
 import { createRoute } from '@hono/zod-openapi';
@@ -26,3 +26,14 @@ export const dbHealthRoute = createRoute({
   },
 });
 export type DBHealthRoute = typeof dbHealthRoute;
+
+export const loginRoute = createRoute({
+  path: '/login',
+  method: 'get',
+  responses: {
+    [HttpStatusCodes.OK]: jsxContent({
+      description: 'Login',
+    }),
+  },
+});
+export type LoginRoute = typeof loginRoute;

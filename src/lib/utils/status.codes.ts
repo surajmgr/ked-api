@@ -409,3 +409,5 @@ export const HttpStatusCodes = {
   INSUFFICIENT_STORAGE,
   NETWORK_AUTHENTICATION_REQUIRED,
 } as const;
+
+export type HttpStatusCodesType = (typeof HttpStatusCodes)[keyof typeof HttpStatusCodes];

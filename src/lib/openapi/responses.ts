@@ -31,6 +31,18 @@ export const NOT_FOUND_RESPONSE = {
   }),
 };
 
+export const UNAUTHORIZED_RESPONSE = {
+  [HttpStatusCodes.UNAUTHORIZED]: jsonContentRaw({
+    description: 'Unauthorized',
+    schema: z
+      .object({
+        success: z.boolean(),
+        message: z.string(),
+      })
+      .openapi({ example: { success: false, message: 'Unauthorized' } }),
+  }),
+};
+
 export const COMMON_RESPONSES = {
   OK: {
     [HttpStatusCodes.OK]: jsonContentBase({

@@ -44,6 +44,8 @@ export default function init() {
     const currentStatus = 'status' in err ? err.status : 500;
     const statusCode = currentStatus !== 200 ? (currentStatus as ContentfulStatusCode) : 500;
 
+    console.log(err);
+
     return c.json(
       {
         success: false,

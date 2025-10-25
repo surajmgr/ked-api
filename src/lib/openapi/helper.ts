@@ -65,6 +65,15 @@ export const jsonContentRaw = <T extends ZodSchema>({ schema, description }: Jso
   description,
 });
 
+export const jsxContent = ({ description }: { description: string }) => ({
+  content: {
+    'text/html': {
+      schema: z.string(),
+    },
+  },
+  description,
+});
+
 export const jsonContent = <T extends ZodSchema>({ schema, description }: JsonContentOptions<T>) => ({
   content: {
     'application/json': {

@@ -1,7 +1,9 @@
-export class ApiError extends Error {
-  status: number;
+import { HttpStatusCodes, type HttpStatusCodesType } from '@/lib/utils/status.codes';
 
-  constructor(message: string, status: number = 500) {
+export class ApiError extends Error {
+  status: HttpStatusCodesType;
+
+  constructor(message: string, status: HttpStatusCodesType = HttpStatusCodes.INTERNAL_SERVER_ERROR) {
     super(message);
     this.name = 'ApiError';
     this.status = status;

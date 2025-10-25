@@ -48,7 +48,7 @@ export const withCursorPagination = async <T extends PgSelect>(
         )
       : or(
           gt(createdAt, new Date(cursorObj.createdAt)),
-          and(eq(createdAt, new Date(cursorObj.createdAt)), gt(id, cursorObj.id)),
+          and(eq(createdAt, new Date(cursorObj.createdAt)), lt(id, cursorObj.id)),
         )
     : undefined;
 
@@ -69,10 +69,10 @@ export const withCursorPagination = async <T extends PgSelect>(
   const last = data[data.length - 1];
 
   const nextCursor =
-    last && createdAt.name in last && id.name in last
+    last && 'createdAt' in last && id.name in last
       ? Buffer.from(
           JSON.stringify({
-            createdAt: new Date(last[createdAt.name]).toISOString(),
+            createdAt: new Date(last.createdAt).toISOString(),
             id: last[id.name],
           }),
         ).toString('base64')
@@ -81,10 +81,10 @@ export const withCursorPagination = async <T extends PgSelect>(
   const hasPrev = !!cursorObj;
 
   const prevCursor =
-    first && createdAt.name in first && id.name in first
+    first && 'createdAt' in first && id.name in first
       ? Buffer.from(
           JSON.stringify({
-            createdAt: new Date(first[createdAt.name]).toISOString(),
+            createdAt: new Date(first.createdAt).toISOString(),
             id: first[id.name],
           }),
         ).toString('base64')
