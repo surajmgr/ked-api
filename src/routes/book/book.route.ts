@@ -8,7 +8,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 const tags = ['Book'];
 
 export const get = createRoute({
-  path: '/{slug}',
+  path: '/public/{slug}',
   method: 'get',
   tags,
   request: {
@@ -27,7 +27,7 @@ export const get = createRoute({
 export type Get = typeof get;
 
 export const list = createRoute({
-  path: '/list',
+  path: '/public/list',
   method: 'get',
   tags,
   request: {
@@ -60,7 +60,7 @@ export const create = createRoute({
       description: 'Create Book',
       schema: selectBookSchemaWithGradeBook,
     }),
-  },
+  }
 });
 export type Create = typeof create;
 

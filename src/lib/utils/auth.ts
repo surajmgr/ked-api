@@ -3,6 +3,10 @@ import type { AuthSessionResponseSchema } from '@/schema/auth.schema';
 import { getCookie } from 'hono/cookie';
 import { authSessionResponseSchema } from '@/schema/auth.schema';
 import { env } from 'cloudflare:workers';
+import { AppBindings } from '../types/init';
+import { ApiError } from './error';
+import { HttpStatusCodes } from './status.codes';
+import { hasRouteAccess, PUBLIC_ROUTES } from '@/middleware/route.level';
 
 const SECURE_AUTH_COOKIE_KEY = '__Secure-better-auth.session_token';
 const AUTH_COOKIE_KEY = 'better-auth.session_token';
@@ -33,7 +37,7 @@ export async function sessionAuthenticate(token: string) {
   return response.json();
 }
 
-export async function authenticateToken(c: Context): Promise<AuthSessionResponseSchema | null> {
+export async function authenticateToken(c: Context): Promise<AuthSessionResponseSchema> {
   try {
     const secureCookie = getCookie(c, SECURE_AUTH_COOKIE_KEY);
     const regularCookie = getCookie(c, AUTH_COOKIE_KEY);
@@ -54,4 +58,23 @@ export async function authenticateToken(c: Context): Promise<AuthSessionResponse
     console.error('[Auth] Unexpected error during authentication:', error);
     return null;
   }
+}
+
+export async function getCurrentSession<T extends boolean>(
+  c: Context<AppBindings>,
+  authIsRequired: T
+) {
+  let session = c.get('auth');
+  const path = c.req.path;
+
+  if (hasRouteAccess(path, PUBLIC_ROUTES)) {
+    session = await authenticateToken(c);
+    c.set('auth', session);
+  }
+
+  if (!session && authIsRequired) {
+    throw new ApiError('Unauthorized', HttpStatusCodes.UNAUTHORIZED);
+  }
+
+  return session as T extends true ? NonNullable<AppBindings["Variables"]["auth"]> : AppBindings["Variables"]["auth"];
 }

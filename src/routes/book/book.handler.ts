@@ -8,6 +8,8 @@ import { withCursorPagination } from '@/lib/utils/pagination';
 import type { Active, Create, Get, List, Update } from './book.route';
 import { attachOrUpdateGrade, fetchBookBySlug } from './book.helpers';
 import { generateUniqueBookSlug } from '@/lib/utils/slugify';
+import { getCurrentSession } from '@/lib/utils/auth';
+import { ApiError } from '@/lib/utils/error';
 
 export const get: AppRouteHandler<Get> = async (c) => {
   const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
@@ -78,6 +80,8 @@ export const create: AppRouteHandler<Create> = async (c) => {
   const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
   const body = c.req.valid('json');
 
+  const { user } = await getCurrentSession(c, true);
+
   const [book] = await client
     .insert(books)
     .values({
@@ -89,7 +93,7 @@ export const create: AppRouteHandler<Create> = async (c) => {
       coverImage: body.coverImage,
       category: body.category,
       difficultyLevel: body.difficultyLevel,
-      createdBy: 'system',
+      createdBy: user.id,
     })
     .returning();
 
@@ -105,6 +109,15 @@ export const update: AppRouteHandler<Update> = async (c) => {
   const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
   const { id } = c.req.valid('param');
   const body = c.req.valid('json');
+
+  const { user } = await getCurrentSession(c, true);
+
+  const book = await client.query.books.findFirst({
+    where: eq(books.id, id),
+    columns: { createdBy: true },
+  });
+  if (!book) throw new ApiError('Book not found', HttpStatusCodes.NOT_FOUND);
+  if (book.createdBy !== user.id) throw new ApiError('Unauthorized', HttpStatusCodes.UNAUTHORIZED);
 
   const { gradeId, ...rest } = body;
 
@@ -125,6 +138,15 @@ export const active: AppRouteHandler<Active> = async (c) => {
   const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
   const { id } = c.req.valid('param');
   const { active } = c.req.valid('json');
+
+  const { user } = await getCurrentSession(c, true);
+
+  const book = await client.query.books.findFirst({
+    where: eq(books.id, id),
+    columns: { createdBy: true },
+  });
+  if (!book) throw new ApiError('Book not found', HttpStatusCodes.NOT_FOUND);
+  if (book.createdBy !== user.id) throw new ApiError('Unauthorized', HttpStatusCodes.UNAUTHORIZED);
 
   const [result] = await client.update(books).set({ isActive: active }).where(eq(books.id, id)).returning();
   if (!result) return c.json({ success: false, message: HttpStatusPhrases.NOT_FOUND }, HttpStatusCodes.NOT_FOUND);

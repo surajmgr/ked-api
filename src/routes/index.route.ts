@@ -14,7 +14,7 @@ export default function configureRoutes(app: AppOpenAPI) {
       route: example,
     },
     {
-      path: '/public/book',
+      path: '/book',
       route: books,
     },
   ];

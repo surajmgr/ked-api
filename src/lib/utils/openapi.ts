@@ -21,6 +21,21 @@ export default function configureOpenAPI(app: AppOpenAPI) {
         targetKey: 'js',
         clientKey: 'fetch',
       },
+      authentication: {
+        preferredSecurityScheme: 'cookieAuth',
+        securitySchemes: {
+          cookieAuth: {
+            type: 'apiKey',
+            name: '__Secure-better-auth.session_token',
+            in: 'cookie',
+          },
+          apiKeyHeader: {
+            type: 'apiKey',
+            name: 'Authorization',
+            in: 'header',
+          },
+        }
+      }
     }),
   );
 }
