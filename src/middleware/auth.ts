@@ -17,7 +17,7 @@ export async function authMiddleware(c: Context, next: Next) {
   // ---------------------
   if (hasRouteAccess(path, PUBLIC_ROUTES)) return next();
 
-  let session: AuthSessionResponseSchema | null = null;
+  let session: AuthSessionResponseSchema = null;
 
   try {
     // Attempt to authenticate if token is provided

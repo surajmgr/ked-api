@@ -38,6 +38,6 @@ const userSchema = z.object({
 export const authSessionResponseSchema = z.object({
   session: sessionSchema,
   user: userSchema,
-});
+}).nullable();
 
 export type AuthSessionResponseSchema = z.infer<typeof authSessionResponseSchema>;

@@ -33,7 +33,7 @@ export async function sessionAuthenticate(token: string) {
   return response.json();
 }
 
-export async function authenticateToken(c: Context): Promise<AuthSessionResponseSchema | null> {
+export async function authenticateToken(c: Context): Promise<AuthSessionResponseSchema> {
   try {
     const secureCookie = getCookie(c, SECURE_AUTH_COOKIE_KEY);
     const regularCookie = getCookie(c, AUTH_COOKIE_KEY);
