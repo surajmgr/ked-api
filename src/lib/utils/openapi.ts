@@ -34,8 +34,8 @@ export default function configureOpenAPI(app: AppOpenAPI) {
             name: 'Authorization',
             in: 'header',
           },
-        }
-      }
+        },
+      },
     }),
   );
 }

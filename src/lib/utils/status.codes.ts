@@ -410,4 +410,4 @@ export const HttpStatusCodes = {
   NETWORK_AUTHENTICATION_REQUIRED,
 } as const;
 
-export type HttpStatusCodesType = typeof HttpStatusCodes[keyof typeof HttpStatusCodes];
+export type HttpStatusCodesType = (typeof HttpStatusCodes)[keyof typeof HttpStatusCodes];

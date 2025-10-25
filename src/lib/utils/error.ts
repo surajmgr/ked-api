@@ -1,7 +1,7 @@
-import { HttpStatusCodes, HttpStatusCodesType } from '@/lib/utils/status.codes';
+import { HttpStatusCodes, type HttpStatusCodesType } from '@/lib/utils/status.codes';
 
 export class ApiError extends Error {
-  status: HttpStatusCodesType
+  status: HttpStatusCodesType;
 
   constructor(message: string, status: HttpStatusCodesType = HttpStatusCodes.INTERNAL_SERVER_ERROR) {
     super(message);

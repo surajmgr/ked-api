@@ -60,7 +60,7 @@ export const create = createRoute({
       description: 'Create Book',
       schema: selectBookSchemaWithGradeBook,
     }),
-  }
+  },
 });
 export type Create = typeof create;
 

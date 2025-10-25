@@ -3,7 +3,7 @@ import type { AuthSessionResponseSchema } from '@/schema/auth.schema';
 import { getCookie } from 'hono/cookie';
 import { authSessionResponseSchema } from '@/schema/auth.schema';
 import { env } from 'cloudflare:workers';
-import { AppBindings } from '../types/init';
+import type { AppBindings } from '../types/init';
 import { ApiError } from './error';
 import { HttpStatusCodes } from './status.codes';
 import { hasRouteAccess, PUBLIC_ROUTES } from '@/middleware/route.level';
@@ -60,10 +60,7 @@ export async function authenticateToken(c: Context): Promise<AuthSessionResponse
   }
 }
 
-export async function getCurrentSession<T extends boolean>(
-  c: Context<AppBindings>,
-  authIsRequired: T
-) {
+export async function getCurrentSession<T extends boolean>(c: Context<AppBindings>, authIsRequired: T) {
   let session = c.get('auth');
   const path = c.req.path;
 
@@ -76,5 +73,5 @@ export async function getCurrentSession<T extends boolean>(
     throw new ApiError('Unauthorized', HttpStatusCodes.UNAUTHORIZED);
   }
 
-  return session as T extends true ? NonNullable<AppBindings["Variables"]["auth"]> : AppBindings["Variables"]["auth"];
+  return session as T extends true ? NonNullable<AppBindings['Variables']['auth']> : AppBindings['Variables']['auth'];
 }

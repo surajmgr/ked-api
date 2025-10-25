@@ -41,7 +41,7 @@ export const UNAUTHORIZED_RESPONSE = {
       })
       .openapi({ example: { success: false, message: 'Unauthorized' } }),
   }),
-}
+};
 
 export const COMMON_RESPONSES = {
   OK: {

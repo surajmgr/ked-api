@@ -3,8 +3,7 @@ import { HttpStatusCodes } from '@/lib/utils/status.codes';
 import { sql } from 'drizzle-orm';
 import { getClient } from '@/db';
 import type { AppRouteHandler } from '@/lib/types/helper';
-import { ApiError } from '@/lib/utils/error';
-import { authenticateToken, getCurrentSession } from '@/lib/utils/auth';
+import { getCurrentSession } from '@/lib/utils/auth';
 import { getLoginHtml } from '@/client/login/html';
 
 export const healthHandler: AppRouteHandler<HealthRoute> = (c) => {

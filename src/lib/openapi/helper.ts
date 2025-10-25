@@ -72,7 +72,7 @@ export const jsxContent = ({ description }: { description: string }) => ({
     },
   },
   description,
-})
+});
 
 export const jsonContent = <T extends ZodSchema>({ schema, description }: JsonContentOptions<T>) => ({
   content: {

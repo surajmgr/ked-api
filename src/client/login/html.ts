@@ -1,5 +1,5 @@
-import { AuthSessionResponseSchema } from "@/schema/auth.schema";
-import { env } from "cloudflare:workers";
+import type { AuthSessionResponseSchema } from '@/schema/auth.schema';
+import { env } from 'cloudflare:workers';
 
 export function getLoginHtml(session: AuthSessionResponseSchema) {
   const loggedIn = !!session?.user;
@@ -13,19 +13,25 @@ export function getLoginHtml(session: AuthSessionResponseSchema) {
 <title>${loggedIn ? 'Dashboard' : 'Login'}</title>
 </head>
 <body>
-  ${loggedIn ? `
+  ${
+    loggedIn
+      ? `
     <p>Welcome, ${session?.user?.email || 'User'}!</p>
     <button id="logoutBtn">Logout</button>
-  ` : `
+  `
+      : `
     <form id="loginForm">
       <input type="email" name="email" placeholder="Email" required /><br />
       <input type="password" name="password" placeholder="Password" required /><br />
       <button type="submit">Login</button>
     </form>
-  `}
+  `
+  }
 
   <script>
-    ${!loggedIn ? `
+    ${
+      !loggedIn
+        ? `
     (function() {
       const form = document.getElementById('loginForm');
 
@@ -61,7 +67,8 @@ export function getLoginHtml(session: AuthSessionResponseSchema) {
         }
       });
     })();
-    ` : `
+    `
+        : `
     (function() {
       const logoutBtn = document.getElementById('logoutBtn');
       logoutBtn.addEventListener('click', async () => {
@@ -77,7 +84,8 @@ export function getLoginHtml(session: AuthSessionResponseSchema) {
         }
       });
     })();
-    `}
+    `
+    }
   </script>
 </body>
 </html>

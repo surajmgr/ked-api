@@ -35,9 +35,11 @@ const userSchema = z.object({
   updatedAt: IsoDateString,
 });
 
-export const authSessionResponseSchema = z.object({
-  session: sessionSchema,
-  user: userSchema,
-}).nullable();
+export const authSessionResponseSchema = z
+  .object({
+    session: sessionSchema,
+    user: userSchema,
+  })
+  .nullable();
 
 export type AuthSessionResponseSchema = z.infer<typeof authSessionResponseSchema>;
