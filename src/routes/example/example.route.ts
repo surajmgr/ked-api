@@ -28,6 +28,7 @@ export const get = createRoute({
       schema: selectExampleSchema,
     }),
   },
+  hide: true,
 });
 export type Get = typeof get;
 
@@ -45,6 +46,7 @@ export const list = createRoute({
       schema: z.array(selectExampleSchema),
     }),
   },
+  hide: true,
 });
 export type List = typeof list;
 
@@ -66,6 +68,7 @@ export const create = createRoute({
       schema: selectExampleSchema,
     }),
   },
+  hide: true,
 });
 export type Create = typeof create;
 
@@ -89,6 +92,7 @@ export const update = createRoute({
       schema: selectExampleSchema,
     }),
   },
+  hide: true,
 });
 export type Update = typeof update;
 
@@ -104,5 +108,6 @@ export const remove = createRoute({
     ...NOT_FOUND_RESPONSE,
     ...COMMON_RESPONSES.OK,
   },
+  hide: true,
 });
 export type Remove = typeof remove;

@@ -1,8 +1,13 @@
-import { insertBookSchema, selectBookSchema, selectBookSchemaWithGradeBook, updateBookSchema } from '@/db/schema';
+import {
+  insertBookSchema,
+  selectBookSchema,
+  selectBookSchemaWithGradeBook,
+  updateBookSchema,
+} from '@/db/schema/tables/book';
 import { jsonContent, jsonContentWithPagination, jsonReqContentRequired } from '@/lib/openapi/helper';
 import { GLOBAL_RESPONSES, NOT_FOUND_RESPONSE, VALIDATION_ERROR_RESPONSE } from '@/lib/openapi/responses';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
-import { idParamsSchema, cursorPaginationQuerySchema, slugParamsSchema } from '@/schema/req.schema';
+import { idParamsSchema, cursorPaginationQuerySchema, slugParamsSchema, getBookQuerySchema } from '@/schema/req.schema';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Book'];
@@ -12,6 +17,7 @@ export const get = createRoute({
   method: 'get',
   tags,
   request: {
+    query: getBookQuerySchema,
     params: slugParamsSchema,
   },
   responses: {
@@ -37,7 +43,7 @@ export const list = createRoute({
     ...GLOBAL_RESPONSES,
     [HttpStatusCodes.OK]: jsonContentWithPagination({
       description: 'Get Books',
-      schema: z.array(selectBookSchema),
+      schema: z.array(selectBookSchemaWithGradeBook),
     }),
   },
 });
@@ -81,7 +87,7 @@ export const update = createRoute({
     ...NOT_FOUND_RESPONSE,
     [HttpStatusCodes.OK]: jsonContent({
       description: 'Update Book',
-      schema: selectBookSchema,
+      schema: selectBookSchemaWithGradeBook,
     }),
   },
 });

@@ -4,6 +4,7 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { AppBindings } from '@/lib/types/init';
 import { UNPROCESSABLE_ENTITY } from './status.codes';
 import { formatZodErrors } from '../openapi/helper';
+import corsMiddleware from '@/middleware/cors';
 
 export function createRouter() {
   return new OpenAPIHono<AppBindings>({
@@ -32,6 +33,7 @@ export default function init() {
   });
 
   app.use('*', authMiddleware);
+  app.use('*', corsMiddleware);
 
   app.notFound((c) => {
     return c.json({
@@ -43,8 +45,6 @@ export default function init() {
   app.onError((err, c) => {
     const currentStatus = 'status' in err ? err.status : 500;
     const statusCode = currentStatus !== 200 ? (currentStatus as ContentfulStatusCode) : 500;
-
-    console.log(err);
 
     return c.json(
       {

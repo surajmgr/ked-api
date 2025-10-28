@@ -27,7 +27,8 @@
   "kv_namespaces": [
     {
       "binding": "KED_KV",
-      "id": "bec51035db7443f9b63edae508a2cab7"
+      "id": "bec51035db7443f9b63edae508a2cab7",
+      "preview_id": "717000543f7c47d2aca0343897b11203"
     }
   ],
   /**
@@ -47,6 +48,7 @@
    */
   "vars": {
     "AUTH_API_URL": "https://cf-auth.surajpulami.com.np",
+    "TRUSTED_ORIGINS": "*.surajpulami.com.np"
   }
   /**
    * Note: Use secrets to store sensitive data.

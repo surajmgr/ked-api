@@ -7,3 +7,13 @@ export type ZodSchema = z.ZodUnion | z.AnyZodObject | z.ZodArray<z.AnyZodObject>
 export type ZodIssue = z.core.$ZodIssue;
 
 export type AppRouteHandler<R extends RouteConfig> = RouteHandler<R, AppBindings>;
+
+export type CacheOptions = {
+  key?: string;
+  ttl?: number;
+  revalidate?: boolean;
+  cacheControlOptions?: {
+    maxAge?: number;
+    staleWhileRevalidate?: number;
+  };
+};

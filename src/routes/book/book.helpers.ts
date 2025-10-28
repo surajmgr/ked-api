@@ -1,8 +1,9 @@
 import type { ClientType } from '@/db';
 import { books, gradeBooks, grades } from '@/db/schema/index';
-import { eq } from 'drizzle-orm';
+import type { GradeSchema } from '@/db/schema/tables/book';
+import { eq, sql } from 'drizzle-orm';
 
-export async function fetchBookBySlug(client: ClientType, slug: string) {
+export async function fetchBookBySlug(client: ClientType, slug: string, gradesLimit = 3) {
   const [result] = await client
     .select({
       id: books.id,
@@ -18,8 +19,17 @@ export async function fetchBookBySlug(client: ClientType, slug: string) {
       isActive: books.isActive,
       createdBy: books.createdBy,
       updatedAt: books.updatedAt,
-      gradeId: grades.id,
-      gradeName: grades.name,
+      grades: sql`(
+      SELECT COALESCE(json_agg(g), '[]'::json)
+      FROM (
+        SELECT g.id, g.name
+        FROM grade_books gb
+        JOIN grades g ON gb.grade_id = g.id
+        WHERE gb.book_id = books.id
+        ORDER BY g.id ASC
+        LIMIT ${gradesLimit}
+      ) g
+      )`,
     })
     .from(books)
     .leftJoin(gradeBooks, eq(books.id, gradeBooks.bookId))
@@ -27,7 +37,10 @@ export async function fetchBookBySlug(client: ClientType, slug: string) {
     .where(eq(books.slug, slug))
     .limit(1);
 
-  return result;
+  return {
+    ...result,
+    grades: result.grades as GradeSchema[],
+  };
 }
 
 export async function fetchGradeById(client: ClientType, gradeId: string) {

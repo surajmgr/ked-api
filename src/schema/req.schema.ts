@@ -20,29 +20,18 @@ export const slugParamsSchema = z.object({
   }),
 });
 
-export const paginationQuerySchema = z.object({
-  page: z
-    .number()
-    .min(1)
-    .default(1)
-    .openapi({
-      param: {
-        name: 'page',
-        in: 'query',
-      },
-      example: 1,
-    }),
-  limit: z
+export const getBookQuerySchema = z.object({
+  gradesLimit: z.coerce
     .number()
     .min(1)
     .max(100)
-    .default(10)
+    .default(3)
     .openapi({
       param: {
-        name: 'limit',
+        name: 'gradesLimit',
         in: 'query',
       },
-      example: 10,
+      example: 3,
     }),
 });
 

@@ -2,34 +2,52 @@ import { HttpStatusCodes } from '@/lib/utils/status.codes';
 import { HttpStatusPhrases } from '@/lib/utils/status.phrases';
 import { getClient } from '@/db';
 import type { AppRouteHandler } from '@/lib/types/helper';
-import { books, gradeBooks, grades } from '@/db/schema';
-import { eq, count } from 'drizzle-orm';
+import { books } from '@/db/schema';
+import { eq, count, sql, desc } from 'drizzle-orm';
 import { withCursorPagination } from '@/lib/utils/pagination';
 import type { Active, Create, Get, List, Update } from './book.route';
 import { attachOrUpdateGrade, fetchBookBySlug } from './book.helpers';
 import { generateUniqueBookSlug } from '@/lib/utils/slugify';
 import { getCurrentSession } from '@/lib/utils/auth';
 import { ApiError } from '@/lib/utils/error';
+import { cacheJSON, getCachedJSON } from '@/lib/utils/cache';
+import { CACHE_DEFAULTS } from '@/lib/utils/defaults';
+import type { GradeSchema } from '@/db/schema/tables/book';
 
 export const get: AppRouteHandler<Get> = async (c) => {
+  const cachedJson = await getCachedJSON(c, CACHE_DEFAULTS.BOOK_INFO);
+  if (cachedJson) return c.json(cachedJson);
+
   const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
   const { slug } = c.req.valid('param');
+  const { gradesLimit } = c.req.valid('query');
 
-  const result = await fetchBookBySlug(client, slug);
+  const result = await fetchBookBySlug(client, slug, gradesLimit);
 
   if (!result) {
     return c.json({ success: false, message: HttpStatusPhrases.NOT_FOUND }, HttpStatusCodes.NOT_FOUND);
   }
 
-  return c.json({ success: true, message: 'Success', data: result }, HttpStatusCodes.OK);
+  const responseJson = {
+    success: true,
+    message: HttpStatusPhrases.OK,
+    data: result,
+  };
+
+  await cacheJSON(c, responseJson, CACHE_DEFAULTS.BOOK_INFO);
+
+  return c.json(responseJson, HttpStatusCodes.OK);
 };
 
 export const list: AppRouteHandler<List> = async (c) => {
+  const cachedJson = await getCachedJSON(c, CACHE_DEFAULTS.BOOK_LIST);
+  if (cachedJson) return c.json(cachedJson);
+
   const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
   const { limit, cursor, c_total, state } = c.req.valid('query');
 
   const booksQuery = client
-    .selectDistinct({
+    .select({
       id: books.id,
       title: books.title,
       createdAt: books.createdAt,
@@ -43,14 +61,21 @@ export const list: AppRouteHandler<List> = async (c) => {
       isActive: books.isActive,
       createdBy: books.createdBy,
       updatedAt: books.updatedAt,
-      gradeId: grades.id,
-      gradeName: grades.name,
+      grades: sql`(
+      SELECT COALESCE(json_agg(g), '[]'::json)
+      FROM (
+        SELECT g.id, g.name
+        FROM grade_books gb
+        JOIN grades g ON gb.grade_id = g.id
+        WHERE gb.book_id = books.id
+        ORDER BY g.id ASC
+        LIMIT 1
+      ) g
+      )`,
     })
     .from(books)
-    .leftJoin(gradeBooks, eq(books.id, gradeBooks.bookId))
-    .leftJoin(grades, eq(gradeBooks.gradeId, grades.id))
     .where(eq(books.isActive, true))
-    .orderBy(books.id)
+    .orderBy(desc(books.createdAt), desc(books.id))
     .limit(limit);
 
   const totalQuery = client.select({ count: count() }).from(books).where(eq(books.isActive, true));
@@ -63,17 +88,38 @@ export const list: AppRouteHandler<List> = async (c) => {
   );
   const total = c_total ? await totalQuery.$dynamic() : null;
 
-  return c.json(
-    {
-      success: true,
-      message: 'Success',
-      data: {
-        ...data,
-        pagination: { ...data.pagination, ...(total && { totalItems: total[0].count }) },
-      },
+  const safeBooks = data.result.map((book) => {
+    return {
+      id: book.id,
+      title: book.title,
+      slug: book.slug,
+      description: book.description,
+      author: book.author,
+      isbn: book.isbn,
+      coverImage: book.coverImage,
+      category: book.category,
+      difficultyLevel: book.difficultyLevel,
+      isActive: book.isActive,
+      createdBy: book.createdBy,
+      updatedAt: book.updatedAt,
+      createdAt: book.createdAt,
+      grades: book.grades as GradeSchema[],
+    };
+  });
+
+  const responseJson = {
+    success: true,
+    message: 'Success',
+    data: {
+      ...data,
+      result: safeBooks,
+      pagination: { ...data.pagination, ...(total && { totalItems: total[0].count }) },
     },
-    HttpStatusCodes.OK,
-  );
+  };
+
+  await cacheJSON(c, responseJson, CACHE_DEFAULTS.BOOK_LIST);
+
+  return c.json(responseJson, HttpStatusCodes.OK);
 };
 
 export const create: AppRouteHandler<Create> = async (c) => {
