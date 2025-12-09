@@ -25,4 +25,4 @@ ENV PORT=3000
 
 # Command to run the application using TSX for simplicity, 
 # or you could compile to JS and run with node
-CMD ["npm", "run", "start:node"]
+CMD ["npm", "run", "start"]
