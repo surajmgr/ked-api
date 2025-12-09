@@ -1,5 +1,48 @@
 import { z } from '@hono/zod-openapi';
 
+/**
+ * Generic builder for OpenAPI path parameter schemas.
+ *
+ * @example
+ * const params = buildParams({
+ *   bookId: z.string().uuid(),
+ *   topicId: z.cuid2(),
+ *   slug: z.string().min(1),
+ * });
+ *
+ * // produces:
+ * // z.object({ bookId: ..., topicId: ..., slug: ... })
+ * // each with proper .openapi({ param: { name, in: 'path' }})
+ */
+export function buildParams<T extends Record<string, z.ZodTypeAny>>(shape: T) {
+  const entries = Object.entries(shape).map(([key, schema]) => {
+    // attach openapi metadata if not already present
+    const withMeta =
+      'openapiMetadata' in (schema as any)._def
+        ? schema
+        : schema.openapi({
+          param: {
+            name: key,
+            in: 'path',
+          },
+          example: makeExampleFor(key),
+        });
+
+    return [key, withMeta];
+  });
+
+  return z.object(Object.fromEntries(entries) as { [K in keyof T]: T[K] });
+}
+
+/**
+ * Provide a simple, readable example based on param name/type
+ */
+function makeExampleFor(param: string): string {
+  if (param.toLowerCase().includes('id')) return 'a1b2c3d4e5f6g7h8i9j0k1l2';
+  if (param.toLowerCase().includes('slug')) return 'example-slug';
+  return 'example-value';
+}
+
 export const idParamsSchema = z.object({
   id: z.cuid2().openapi({
     param: {

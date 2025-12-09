@@ -2,6 +2,7 @@ import type { AppOpenAPI } from '@/lib/types/init';
 import system from './system/system.index';
 import example from './example/example.index';
 import books from './book/book.index';
+import topics from './book/topic/topic.index';
 
 export default function configureRoutes(app: AppOpenAPI) {
   const routes = [
@@ -12,6 +13,10 @@ export default function configureRoutes(app: AppOpenAPI) {
     {
       path: '/public/example',
       route: example,
+    },
+    {
+      path: '/topic',
+      route: topics,
     },
     {
       path: '/book',

@@ -5,6 +5,7 @@ import type { AppBindings } from '@/lib/types/init';
 import { UNPROCESSABLE_ENTITY } from './status.codes';
 import { formatZodErrors } from '../openapi/helper';
 import corsMiddleware from '@/middleware/cors';
+import { getErrorMessage } from './error';
 
 export function createRouter() {
   return new OpenAPIHono<AppBindings>({
@@ -49,7 +50,7 @@ export default function init() {
     return c.json(
       {
         success: false,
-        message: err.message,
+        message: getErrorMessage(err),
       },
       statusCode,
     );

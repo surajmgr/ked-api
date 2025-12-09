@@ -4,7 +4,6 @@ import { getClient } from '@/db';
 import type { AppRouteHandler } from '@/lib/types/helper';
 import { books } from '@/db/schema';
 import { eq, count, sql, desc } from 'drizzle-orm';
-import { withCursorPagination } from '@/lib/utils/pagination';
 import type { Active, Create, Get, List, Update } from './book.route';
 import { attachOrUpdateGrade, fetchBookBySlug } from './book.helpers';
 import { generateUniqueBookSlug } from '@/lib/utils/slugify';
@@ -13,6 +12,7 @@ import { ApiError } from '@/lib/utils/error';
 import { cacheJSON, getCachedJSON } from '@/lib/utils/cache';
 import { CACHE_DEFAULTS } from '@/lib/utils/defaults';
 import type { GradeSchema } from '@/db/schema/tables/book';
+import { withCursorPagination } from '@/lib/utils/pagination';
 
 export const get: AppRouteHandler<Get> = async (c) => {
   const cachedJson = await getCachedJSON(c, CACHE_DEFAULTS.BOOK_INFO);
@@ -46,6 +46,7 @@ export const list: AppRouteHandler<List> = async (c) => {
   const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
   const { limit, cursor, c_total, state } = c.req.valid('query');
 
+  const whereCondition = eq(books.isActive, true);
   const booksQuery = client
     .select({
       id: books.id,
@@ -74,18 +75,28 @@ export const list: AppRouteHandler<List> = async (c) => {
       )`,
     })
     .from(books)
-    .where(eq(books.isActive, true))
     .orderBy(desc(books.createdAt), desc(books.id))
     .limit(limit);
 
-  const totalQuery = client.select({ count: count() }).from(books).where(eq(books.isActive, true));
   const data = await withCursorPagination(
     booksQuery.$dynamic(),
-    { createdAt: books.createdAt, id: books.id, direction: 'desc' },
+    {
+      main: {
+        column: books.createdAt,
+        name: 'createdAt',
+      },
+      unique: {
+        column: books.id,
+        name: 'id',
+      },
+    },
     cursor,
     limit,
     state,
+    whereCondition,
   );
+
+  const totalQuery = client.select({ count: count() }).from(books).where(whereCondition);
   const total = c_total ? await totalQuery.$dynamic() : null;
 
   const safeBooks = data.result.map((book) => {
