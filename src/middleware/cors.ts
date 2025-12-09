@@ -1,27 +1,29 @@
 import { cors } from 'hono/cors';
-import { env } from 'cloudflare:workers';
+import type { AppBindings } from '@/lib/types/init';
 
-const TRUSTED_ORIGINS = (env.TRUSTED_ORIGINS || '').split(',');
+function getAllowedDomains(env: AppBindings['Bindings']) {
+  const trustedOrigins = (env.TRUSTED_ORIGINS || '').split(',');
+  return trustedOrigins
+    .map((origin) => origin.trim())
+    .map((origin) => {
+      try {
+        return new URL(origin).hostname.toLowerCase();
+      } catch {
+        return origin.toLowerCase();
+      }
+    });
+}
 
-const CORS_ROOT_DOMAINS = TRUSTED_ORIGINS.map((origin) => origin.trim())
-  .filter((o) => o.startsWith('http://') || o.startsWith('https://') || /^[\w.*-]+$/.test(o))
-  .map((o) => {
-    try {
-      const url = new URL(o);
-      return url.hostname.toLowerCase();
-    } catch {
-      return o.toLowerCase();
-    }
-  });
-
-function isAllowedOrigin(origin: string | null) {
+function isAllowedOrigin(origin: string | null, allowedDomains: string[]) {
   if (!origin) return false;
   try {
     const url = new URL(origin);
     const hostname = url.hostname.toLowerCase();
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
 
-    return CORS_ROOT_DOMAINS.some((domain) => {
+    if (allowedDomains.includes('*')) return true;
+
+    return allowedDomains.some((domain) => {
       if (domain.startsWith('*.')) {
         const base = domain.slice(2);
         return hostname === base || hostname.endsWith(`.${base}`);
@@ -34,9 +36,11 @@ function isAllowedOrigin(origin: string | null) {
 }
 
 export default cors({
-  origin: (origin) => {
+  origin: (origin, c) => {
     if (!origin) return '';
-    return isAllowedOrigin(origin) ? origin : '';
+    const env = c.env as AppBindings['Bindings'];
+    const allowedDomains = getAllowedDomains(env);
+    return isAllowedOrigin(origin, allowedDomains) ? origin : '';
   },
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: [

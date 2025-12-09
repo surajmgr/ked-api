@@ -2,18 +2,16 @@ import type { Context } from 'hono';
 import type { AuthSessionResponseSchema } from '@/schema/auth.schema';
 import { getCookie } from 'hono/cookie';
 import { authSessionResponseSchema } from '@/schema/auth.schema';
-import { env } from 'cloudflare:workers';
 import type { AppBindings } from '../types/init';
 import { ApiError } from './error';
 import { HttpStatusCodes } from './status.codes';
 import { hasRouteAccess, PUBLIC_ROUTES } from '@/middleware/route.level';
 
-const SECURE_AUTH_COOKIE_KEY = '__Secure-better-auth.session_token';
-const AUTH_COOKIE_KEY = 'better-auth.session_token';
+const SECURE_AUTH_COOKIE_KEY = 'auth.session_token';
+const AUTH_COOKIE_KEY = 'auth.session_token';
 
-export async function sessionAuthenticate(token: string) {
-  const AUTH_API_URL = env.AUTH_API_URL;
-  const isSecure = AUTH_API_URL.startsWith('https://');
+export async function sessionAuthenticate(token: string, authApiUrl: string) {
+  const isSecure = authApiUrl.startsWith('https://');
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -25,7 +23,7 @@ export async function sessionAuthenticate(token: string) {
     headers.Cookie = `${AUTH_COOKIE_KEY}=${encodeURIComponent(token)}`;
   }
 
-  const response = await fetch(`${AUTH_API_URL}/api/auth/get-session`, {
+  const response = await fetch(`${authApiUrl}/api/auth/get-session`, {
     method: 'GET',
     headers,
   });
@@ -37,7 +35,7 @@ export async function sessionAuthenticate(token: string) {
   return response.json();
 }
 
-export async function authenticateToken(c: Context): Promise<AuthSessionResponseSchema> {
+export async function authenticateToken(c: Context<AppBindings>): Promise<AuthSessionResponseSchema> {
   try {
     const secureCookie = getCookie(c, SECURE_AUTH_COOKIE_KEY);
     const regularCookie = getCookie(c, AUTH_COOKIE_KEY);
@@ -46,7 +44,8 @@ export async function authenticateToken(c: Context): Promise<AuthSessionResponse
     const token = secureCookie || regularCookie || headerToken;
     if (!token) return null;
 
-    const data = await sessionAuthenticate(token);
+    const authApiUrl = c.env.AUTH_API_URL;
+    const data = await sessionAuthenticate(token, authApiUrl);
 
     if (!data) return null;
 
@@ -63,6 +62,8 @@ export async function authenticateToken(c: Context): Promise<AuthSessionResponse
 export async function getCurrentSession<T extends boolean>(c: Context<AppBindings>, authIsRequired: T) {
   let session = c.get('auth');
   const path = c.req.path;
+
+  console.log(session);
 
   if (hasRouteAccess(path, PUBLIC_ROUTES)) {
     session = await authenticateToken(c);

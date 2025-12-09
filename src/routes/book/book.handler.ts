@@ -1,6 +1,5 @@
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
 import { HttpStatusPhrases } from '@/lib/utils/status.phrases';
-import { getClient } from '@/db';
 import type { AppRouteHandler } from '@/lib/types/helper';
 import { books } from '@/db/schema';
 import { eq, count, sql, desc } from 'drizzle-orm';
@@ -18,7 +17,7 @@ export const get: AppRouteHandler<Get> = async (c) => {
   const cachedJson = await getCachedJSON(c, CACHE_DEFAULTS.BOOK_INFO);
   if (cachedJson) return c.json(cachedJson);
 
-  const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
   const { slug } = c.req.valid('param');
   const { gradesLimit } = c.req.valid('query');
 
@@ -43,7 +42,7 @@ export const list: AppRouteHandler<List> = async (c) => {
   const cachedJson = await getCachedJSON(c, CACHE_DEFAULTS.BOOK_LIST);
   if (cachedJson) return c.json(cachedJson);
 
-  const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
   const { limit, cursor, c_total, state } = c.req.valid('query');
 
   const whereCondition = eq(books.isActive, true);
@@ -134,7 +133,7 @@ export const list: AppRouteHandler<List> = async (c) => {
 };
 
 export const create: AppRouteHandler<Create> = async (c) => {
-  const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
   const body = c.req.valid('json');
 
   const { user } = await getCurrentSession(c, true);
@@ -163,7 +162,7 @@ export const create: AppRouteHandler<Create> = async (c) => {
 };
 
 export const update: AppRouteHandler<Update> = async (c) => {
-  const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
   const { id } = c.req.valid('param');
   const body = c.req.valid('json');
 
@@ -192,7 +191,7 @@ export const update: AppRouteHandler<Update> = async (c) => {
 // ---------- Activate/Deactivate Book ----------
 
 export const active: AppRouteHandler<Active> = async (c) => {
-  const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
   const { id } = c.req.valid('param');
   const { active } = c.req.valid('json');
 

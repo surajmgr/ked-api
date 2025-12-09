@@ -1,6 +1,5 @@
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
 import type { AppRouteHandler } from '@/lib/types/helper';
-import { getClient } from '@/db';
 import type { Create, Get, List, Remove, Update } from './example.route';
 import { example } from '@/db/schema';
 import { HttpStatusPhrases } from '@/lib/utils/status.phrases';
@@ -8,8 +7,7 @@ import { count, eq } from 'drizzle-orm';
 import { withCursorPagination } from '@/lib/utils/pagination';
 
 export const get: AppRouteHandler<Get> = async (c) => {
-  const { HYPERDRIVE } = c.env;
-  const client = await getClient({ HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
 
   const { id } = c.req.valid('param');
 
@@ -40,8 +38,7 @@ export const get: AppRouteHandler<Get> = async (c) => {
 };
 
 export const list: AppRouteHandler<List> = async (c) => {
-  const { HYPERDRIVE } = c.env;
-  const client = await getClient({ HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
 
   const { limit, cursor, c_total, state } = c.req.valid('query');
 
@@ -52,8 +49,10 @@ export const list: AppRouteHandler<List> = async (c) => {
   const data = await withCursorPagination(
     examplesQuery.$dynamic(),
     {
-      createdAt: example.createdAt,
-      id: example.id,
+      main: {
+        column: example.createdAt,
+        name: 'createdAt',
+      },
       direction: 'desc',
     },
     cursor,
@@ -80,8 +79,7 @@ export const list: AppRouteHandler<List> = async (c) => {
 };
 
 export const create: AppRouteHandler<Create> = async (c) => {
-  const { HYPERDRIVE } = c.env;
-  const client = await getClient({ HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
 
   const body = c.req.valid('json');
 
@@ -98,8 +96,7 @@ export const create: AppRouteHandler<Create> = async (c) => {
 };
 
 export const update: AppRouteHandler<Update> = async (c) => {
-  const { HYPERDRIVE } = c.env;
-  const client = await getClient({ HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
 
   const { id } = c.req.valid('param');
   const body = c.req.valid('json');
@@ -127,8 +124,7 @@ export const update: AppRouteHandler<Update> = async (c) => {
 };
 
 export const remove: AppRouteHandler<Remove> = async (c) => {
-  const { HYPERDRIVE } = c.env;
-  const client = await getClient({ HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
 
   const { id } = c.req.valid('param');
 

@@ -7,14 +7,16 @@ import { selectNoteSchema } from './note';
 
 export const selectTopicSchema = createSelectSchema(topics);
 
-export const selectTopicBySlug = selectTopicSchema.pick({
-  id: true,
-  slug: true,
-  title: true,
-  description: true,
-}).extend({
-  book: selectBookSchema.pick({ id: true, title: true, slug: true }),
-})
+export const selectTopicBySlug = selectTopicSchema
+  .pick({
+    id: true,
+    slug: true,
+    title: true,
+    description: true,
+  })
+  .extend({
+    book: selectBookSchema.pick({ id: true, title: true, slug: true }),
+  });
 
 export const selectBookTopicsSchema = selectTopicSchema
   .pick({
@@ -47,22 +49,27 @@ export const selectBookTopicsSchema = selectTopicSchema
   .array();
 export type SelectBookTopicsSchema = z.infer<typeof selectBookTopicsSchema>;
 
-export const getFeaturedNoteByTopicSchema = selectNoteSchema.pick({
-  id: true,
-  title: true,
-  slug: true,
-  content: true,
-  contentType: true,
-  isPremium: true,
-  price: true,
-  updatedAt: true,
-  ratingAvg: true,
-  ratingCount: true,
-  downloadsCount: true,
-}).extend({
-  author: z.object({
-    id: z.string(),
-    name: z.string(),
-    username: z.string(),
-  }).nullable(),
-})
+export const getFeaturedNoteByTopicSchema = selectNoteSchema
+  .pick({
+    id: true,
+    title: true,
+    slug: true,
+    content: true,
+    contentType: true,
+    isPremium: true,
+    price: true,
+    updatedAt: true,
+    ratingAvg: true,
+    ratingCount: true,
+    downloadsCount: true,
+  })
+  .extend({
+    author: z
+      .object({
+        id: z.string(),
+        name: z.string(),
+        email: z.string(),
+        username: z.string().optional(),
+      })
+      .nullable(),
+  });

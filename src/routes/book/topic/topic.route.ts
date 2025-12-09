@@ -16,7 +16,7 @@ export const list = createRoute({
     query: cursorPaginationQuerySchema,
     params: buildParams({
       bookId: z.cuid2(),
-    })
+    }),
   },
   responses: {
     ...GLOBAL_RESPONSES,
@@ -53,13 +53,13 @@ export const getFeaturedNote = createRoute({
   request: {
     params: buildParams({
       topicId: z.cuid2(),
-    })
+    }),
   },
   responses: {
     ...GLOBAL_RESPONSES,
     [HttpStatusCodes.OK]: jsonContent({
       description: 'Get featured note by topicId, for: /topics/{slug}',
-      schema: getFeaturedNoteByTopicSchema
+      schema: getFeaturedNoteByTopicSchema,
     }),
   },
 });
@@ -72,13 +72,13 @@ export const get = createRoute({
   request: {
     params: buildParams({
       slug: z.string(),
-    })
+    }),
   },
   responses: {
     ...GLOBAL_RESPONSES,
     [HttpStatusCodes.OK]: jsonContent({
       description: 'Get topic by slug',
-      schema: selectTopicBySlug
+      schema: selectTopicBySlug,
     }),
   },
 });

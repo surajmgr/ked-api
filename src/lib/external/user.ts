@@ -1,15 +1,12 @@
-import { StandardResponse } from "@/schema/common.schema";
-import { MinimalProfileResponseSchema, minimalProfileResponseSchema } from "@/schema/user.schema";
-import { env } from "cloudflare:workers";
+import type { StandardResponse } from '@/schema/common.schema';
+import { type MinimalProfileResponseSchema, minimalProfileResponseSchema } from '@/schema/user.schema';
 
-const AUTH_API_URL = env.AUTH_API_URL;
-
-export const getMinimalProfileById = async (id: string) => {
+export const getMinimalProfileById = async (id: string, authApiUrl: string) => {
   try {
-    const res = await fetch(`${AUTH_API_URL}/api/profile/minimal?id=${id}`, {
-      method: "GET",
+    const res = await fetch(`${authApiUrl}/api/profile/minimal?id=${id}`, {
+      method: 'GET',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
     });
 
@@ -20,6 +17,6 @@ export const getMinimalProfileById = async (id: string) => {
 
     return parsed.success ? parsed.data : null;
   } catch {
-    return null
+    return null;
   }
 };

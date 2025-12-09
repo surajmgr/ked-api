@@ -1,5 +1,4 @@
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
-import { getClient } from '@/db';
 import type { AppRouteHandler } from '@/lib/types/helper';
 import { books, notes, subtopics, topics } from '@/db/schema';
 import { eq, count, sql, and, asc, desc } from 'drizzle-orm';
@@ -15,7 +14,7 @@ export const list: AppRouteHandler<List> = async (c) => {
   const cachedJson = await getCachedJSON(c, CACHE_DEFAULTS.TOPIC_LIST);
   if (cachedJson) return c.json(cachedJson);
 
-  const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
   const { bookId } = c.req.valid('param');
   const { limit, cursor, c_total, state } = c.req.valid('query');
 
@@ -104,7 +103,7 @@ export const listSubtopics: AppRouteHandler<ListSubtopics> = async (c) => {
   const cachedJson = await getCachedJSON(c, CACHE_DEFAULTS.TOPIC_LIST);
   if (cachedJson) return c.json(cachedJson);
 
-  const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
   const { id } = c.req.valid('param');
   const { limit, cursor, c_total, state } = c.req.valid('query');
 
@@ -175,7 +174,7 @@ export const get: AppRouteHandler<Get> = async (c) => {
   const cachedJson = await getCachedJSON(c, CACHE_DEFAULTS.TOPIC_LIST);
   if (cachedJson) return c.json(cachedJson);
 
-  const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
   const { slug } = c.req.valid('param');
 
   const [topic] = await client
@@ -188,7 +187,7 @@ export const get: AppRouteHandler<Get> = async (c) => {
         id: books.id,
         title: books.title,
         slug: books.slug,
-      }
+      },
     })
     .from(topics)
     .innerJoin(books, eq(books.id, topics.bookId))
@@ -203,13 +202,13 @@ export const get: AppRouteHandler<Get> = async (c) => {
 
   await cacheJSON(c, responseJson, CACHE_DEFAULTS.TOPIC_LIST);
   return c.json(responseJson, HttpStatusCodes.OK);
-}
+};
 
 export const getFeaturedNote: AppRouteHandler<GetFeaturedNote> = async (c) => {
   const cachedJson = await getCachedJSON(c, CACHE_DEFAULTS.TOPIC_LIST);
   if (cachedJson) return c.json(cachedJson);
 
-  const client = await getClient({ HYPERDRIVE: c.env.HYPERDRIVE });
+  const client = await c.var.provider.db.getClient();
   const { topicId } = c.req.valid('param');
 
   const [note] = await client
@@ -232,17 +231,17 @@ export const getFeaturedNote: AppRouteHandler<GetFeaturedNote> = async (c) => {
     .orderBy(desc(notes.updatedAt), desc(notes.downloadsCount), desc(notes.ratingAvg), desc(notes.ratingCount))
     .limit(1);
 
-  const author = await getMinimalProfileById(note.authorId);
+  const author = await getMinimalProfileById(note.authorId, c.env.AUTH_API_URL);
 
   const responseJson = {
     success: true,
     message: 'Success',
     data: {
       ...note,
-      author
-    }
+      author,
+    },
   };
 
   await cacheJSON(c, responseJson, CACHE_DEFAULTS.TOPIC_LIST);
-  return c.json(responseJson, HttpStatusCodes.OK)
-}
+  return c.json(responseJson, HttpStatusCodes.OK);
+};

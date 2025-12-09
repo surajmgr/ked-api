@@ -18,15 +18,15 @@ export function buildParams<T extends Record<string, z.ZodTypeAny>>(shape: T) {
   const entries = Object.entries(shape).map(([key, schema]) => {
     // attach openapi metadata if not already present
     const withMeta =
-      'openapiMetadata' in (schema as any)._def
+      'openapiMetadata' in (schema as z.ZodType)._def
         ? schema
         : schema.openapi({
-          param: {
-            name: key,
-            in: 'path',
-          },
-          example: makeExampleFor(key),
-        });
+            param: {
+              name: key,
+              in: 'path',
+            },
+            example: makeExampleFor(key),
+          });
 
     return [key, withMeta];
   });
