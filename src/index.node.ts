@@ -7,7 +7,7 @@ config();
 
 const port = Number(process.env.PORT) || 3000;
 
-console.log(`Server is running on port ${port}`);
+console.info(`Server is running on port ${port}`);
 
 serve({
   // biome-ignore lint/suspicious/noExplicitAny: compatible signature for node-server

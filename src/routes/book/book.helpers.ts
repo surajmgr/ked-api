@@ -1,9 +1,9 @@
-import type { ClientType } from '@/db';
+import type { DrizzleClient } from '@/db';
 import { books, gradeBooks, grades } from '@/db/schema/index';
 import type { GradeSchema } from '@/db/schema/tables/book';
 import { eq, sql } from 'drizzle-orm';
 
-export async function fetchBookBySlug(client: ClientType, slug: string, gradesLimit = 3) {
+export async function fetchBookBySlug(client: DrizzleClient, slug: string, gradesLimit = 3) {
   const [result] = await client
     .select({
       id: books.id,
@@ -43,7 +43,7 @@ export async function fetchBookBySlug(client: ClientType, slug: string, gradesLi
   };
 }
 
-export async function fetchGradeById(client: ClientType, gradeId: string) {
+export async function fetchGradeById(client: DrizzleClient, gradeId: string) {
   const [grade] = await client
     .select({
       id: grades.id,
@@ -58,7 +58,7 @@ export async function fetchGradeById(client: ClientType, gradeId: string) {
   };
 }
 
-export async function attachOrUpdateGrade(client: ClientType, bookId: string, gradeId?: string) {
+export async function attachOrUpdateGrade(client: DrizzleClient, bookId: string, gradeId?: string) {
   if (!gradeId)
     return {
       gradeId: null,

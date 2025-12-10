@@ -1,7 +1,8 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from '@/db/schema';
-import type { ICacheProvider, IDatabaseProvider, IProvider, DrizzleClient, IStack } from './interfaces';
+import type { ICacheProvider, IDatabaseProvider, IProvider, DrizzleClient, IStack, ILogger } from './interfaces';
+import { initSentryCloudflare, cloudflareSentryLogger } from '../sentry/sentry.cloudflare';
 
 export class CloudflareDatabaseProvider implements IDatabaseProvider {
   constructor(private hyperdrive: Hyperdrive) {}
@@ -62,6 +63,7 @@ export class CloudflareCacheProvider implements ICacheProvider {
 export class CloudflareProvider implements IProvider {
   db: IDatabaseProvider;
   cache: ICacheProvider;
+  logger: ILogger;
   stack: IStack;
 
   constructor(env: CloudflareBindings) {
@@ -69,5 +71,11 @@ export class CloudflareProvider implements IProvider {
     // Use `caches.default` for the standard Cloudflare cache
     this.cache = new CloudflareCacheProvider(caches.default);
     this.stack = 'cloudflare';
+
+    // Initialize Sentry with DSN from environment and version metadata
+    const sentryDsn = env.SENTRY_DSN;
+    const release = env.CF_VERSION_METADATA?.id;
+    initSentryCloudflare(sentryDsn, release);
+    this.logger = cloudflareSentryLogger;
   }
 }

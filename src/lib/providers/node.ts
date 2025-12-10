@@ -2,7 +2,8 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import Redis, { type RedisOptions } from 'ioredis';
 import * as schema from '@/db/schema';
-import type { ICacheProvider, IDatabaseProvider, IProvider, DrizzleClient, IStack } from './interfaces';
+import type { ICacheProvider, IDatabaseProvider, IProvider, DrizzleClient, IStack, ILogger } from './interfaces';
+import { initSentryNode, nodeSentryLogger } from '../sentry/sentry.node';
 
 const defaultRedisOptions: RedisOptions = {
   keyPrefix: 'ked:',
@@ -73,11 +74,16 @@ export class NodeCacheProvider implements ICacheProvider {
 export class NodeProvider implements IProvider {
   db: IDatabaseProvider;
   cache: ICacheProvider;
+  logger: ILogger;
   stack: IStack;
 
-  constructor(databaseUrl: string, redisUrl: string) {
+  constructor(databaseUrl: string, redisUrl: string, sentryDsn?: string) {
     this.db = new NodeDatabaseProvider(databaseUrl);
     this.cache = new NodeCacheProvider(redisUrl);
     this.stack = 'node';
+
+    // Initialize Sentry if DSN is provided
+    initSentryNode(sentryDsn);
+    this.logger = nodeSentryLogger;
   }
 }

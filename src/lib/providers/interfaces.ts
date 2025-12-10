@@ -13,10 +13,16 @@ export interface ICacheProvider {
   delete(key: string): Promise<void>;
 }
 
+export interface ILogger {
+  info(message: string, data?: Record<string, unknown>): void;
+  error(message: string, data?: Record<string, unknown>): void;
+}
+
 export type IStack = 'cloudflare' | 'node';
 
 export interface IProvider {
   db: IDatabaseProvider;
   cache: ICacheProvider;
+  logger: ILogger;
   stack: IStack;
 }

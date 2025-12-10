@@ -60,10 +60,8 @@ export async function authenticateToken(c: Context<AppBindings>): Promise<AuthSe
 }
 
 export async function getCurrentSession<T extends boolean>(c: Context<AppBindings>, authIsRequired: T) {
-  let session = c.get('auth');
+  let session = c.var.auth;
   const path = c.req.path;
-
-  console.log(session);
 
   if (hasRouteAccess(path, PUBLIC_ROUTES)) {
     session = await authenticateToken(c);

@@ -6,6 +6,9 @@ import { UNPROCESSABLE_ENTITY } from './status.codes';
 import { formatZodErrors } from '../openapi/helper';
 import corsMiddleware from '@/middleware/cors';
 import { getErrorMessage } from './error';
+import { secureHeaders } from 'hono/secure-headers';
+import { providerMiddleware } from '@/middleware/provider';
+import { requestLoggerMiddleware } from '@/middleware/logger';
 
 export function createRouter() {
   return new OpenAPIHono<AppBindings>({
@@ -33,8 +36,11 @@ export default function init() {
     strict: false,
   });
 
+  app.use('*', providerMiddleware);
+  app.use('*', requestLoggerMiddleware);
   app.use('*', authMiddleware);
   app.use('*', corsMiddleware);
+  app.use('*', secureHeaders());
 
   app.notFound((c) => {
     return c.json({

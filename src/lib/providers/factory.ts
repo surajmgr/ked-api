@@ -21,6 +21,7 @@ export function createProvider(env: CloudflareBindings | NodeJS.ProcessEnv): IPr
   // Use process.env or the passed env object if it resembles ProcessEnv
   const databaseUrl = (env as NodeJS.ProcessEnv).DATABASE_URL || process.env.DATABASE_URL;
   const redisUrl = (env as NodeJS.ProcessEnv).REDIS_URL || process.env.REDIS_URL;
+  const sentryDsn = (env as NodeJS.ProcessEnv).SENTRY_DSN || process.env.SENTRY_DSN;
 
   if (!databaseUrl) {
     throw new Error('DATABASE_URL is required for Node.js provider');
@@ -29,6 +30,6 @@ export function createProvider(env: CloudflareBindings | NodeJS.ProcessEnv): IPr
     throw new Error('REDIS_URL is required for Node.js provider');
   }
 
-  nodeProviderInstance = new NodeProvider(databaseUrl, redisUrl);
+  nodeProviderInstance = new NodeProvider(databaseUrl, redisUrl, sentryDsn);
   return nodeProviderInstance;
 }
