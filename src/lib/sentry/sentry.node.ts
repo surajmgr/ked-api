@@ -12,7 +12,7 @@ export function initSentryNode(dsn?: string): void {
     integrations: [
       Sentry.consoleLoggingIntegration({
         levels: ['error'],
-      })
+      }),
     ],
     enableLogs: true,
     sendDefaultPii: true,
@@ -25,6 +25,12 @@ export const nodeSentryLogger: ILogger = {
   info(message: string, data?: Record<string, unknown>): void {
     if (data) {
       Sentry.logger.info(message, data);
+    }
+  },
+
+  warn(message: string, data?: Record<string, unknown>): void {
+    if (data) {
+      Sentry.logger.warn(message, data);
     }
   },
 

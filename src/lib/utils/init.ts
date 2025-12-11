@@ -9,6 +9,9 @@ import { getErrorMessage } from './error';
 import { secureHeaders } from 'hono/secure-headers';
 import { providerMiddleware } from '@/middleware/provider';
 import { requestLoggerMiddleware } from '@/middleware/logger';
+import { createGamificationService } from '../services/gamification.service';
+import { createModerationService } from '../services/moderation.service';
+import { contributionMiddleware } from '@/middleware/contribution';
 
 export function createRouter() {
   return new OpenAPIHono<AppBindings>({
@@ -41,6 +44,26 @@ export default function init() {
   app.use('*', authMiddleware);
   app.use('*', corsMiddleware);
   app.use('*', secureHeaders());
+
+  // Service Injection Middleware
+  app.use('*', async (c, next) => {
+    const provider = c.var.provider;
+
+    if (provider) {
+      const logger = provider.logger;
+      const client = await provider.db.getClient();
+      const gamificationService = createGamificationService(client, logger);
+      const moderationService = createModerationService(client, gamificationService, logger);
+
+      c.set('gamificationService', gamificationService);
+      c.set('moderationService', moderationService);
+
+      // We need to pass the service to the middleware factory
+      await contributionMiddleware(gamificationService)(c, next);
+    } else {
+      await next();
+    }
+  });
 
   app.notFound((c) => {
     return c.json({

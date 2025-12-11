@@ -1,4 +1,4 @@
-import { AppBindings } from '@/lib/types/init';
+import type { AppBindings } from '@/lib/types/init';
 import type { MiddlewareHandler } from 'hono';
 
 export const requestLoggerMiddleware: MiddlewareHandler<AppBindings> = async (c, next) => {

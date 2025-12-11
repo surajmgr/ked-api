@@ -16,6 +16,12 @@ export * from './social';
 // Export example schemas;
 export * from './example';
 
+// Export contribution system schemas
+export * from './user-profiles';
+export * from './contribution-ledger';
+export * from './review-tasks';
+export * from './user-progress';
+
 // Re-export commonly used types for convenience
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
 
@@ -93,3 +99,21 @@ export type InsertNotePurchase = InferInsertModel<typeof notePurchases>;
 
 export type NoteRating = InferSelectModel<typeof noteRatings>;
 export type InsertNoteRating = InferInsertModel<typeof noteRatings>;
+
+// Contribution system types
+import type { userProfiles } from './user-profiles';
+import type { contributionLedger } from './contribution-ledger';
+import type { reviewTasks } from './review-tasks';
+import type { userProgress } from './user-progress';
+
+export type UserProfile = InferSelectModel<typeof userProfiles>;
+export type InsertUserProfile = InferInsertModel<typeof userProfiles>;
+
+export type ContributionLedger = InferSelectModel<typeof contributionLedger>;
+export type InsertContributionLedger = InferInsertModel<typeof contributionLedger>;
+
+export type ReviewTask = InferSelectModel<typeof reviewTasks>;
+export type InsertReviewTask = InferInsertModel<typeof reviewTasks>;
+
+export type UserProgress = InferSelectModel<typeof userProgress>;
+export type InsertUserProgress = InferInsertModel<typeof userProgress>;

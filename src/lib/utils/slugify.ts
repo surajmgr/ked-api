@@ -1,5 +1,5 @@
-import { books } from '@/db/schema/index';
-import type { ClientType } from '@/db';
+import { books, questions } from '@/db/schema/index';
+import type { DrizzleClient } from '@/db';
 import { eq, like, sql } from 'drizzle-orm';
 
 export function slugify(text: string) {
@@ -85,7 +85,7 @@ export async function generateUniqueInternal(
   return `${baseSlug}-${dateCode()}-${Math.floor(Math.random() * 100000)}`;
 }
 
-export async function generateUniqueBookSlug(client: ClientType, title: string) {
+export async function generateUniqueBookSlug(client: DrizzleClient, title: string) {
   return generateUniqueInternal(
     title,
     async (prefix) =>
@@ -96,5 +96,20 @@ export async function generateUniqueBookSlug(client: ClientType, title: string) 
         .orderBy(sql`slug DESC`)
         .limit(1),
     async (uniqueSlug) => await client.select({ slug: books.slug }).from(books).where(eq(books.slug, uniqueSlug)),
+  );
+}
+
+export async function generateUniqueQuestionSlug(client: DrizzleClient, title: string) {
+  return generateUniqueInternal(
+    title,
+    async (prefix) =>
+      await client
+        .select({ slug: questions.slug })
+        .from(questions)
+        .where(like(questions.slug, prefix))
+        .orderBy(sql`slug DESC`)
+        .limit(1),
+    async (uniqueSlug) =>
+      await client.select({ slug: questions.slug }).from(questions).where(eq(questions.slug, uniqueSlug)),
   );
 }

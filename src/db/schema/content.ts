@@ -1,7 +1,7 @@
 import { pgTable, text, boolean, integer, index, uniqueIndex, real } from 'drizzle-orm/pg-core';
 import { cuid2 } from 'drizzle-cuid2/postgres';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { difficultyLevelEnum, contentTypeEnum } from './enums';
+import { difficultyLevelEnum, contentTypeEnum, contentStatusEnum } from './enums';
 import z from 'zod';
 import { timestampMs } from './utils';
 
@@ -46,6 +46,7 @@ export const books = pgTable(
     coverImage: text('cover_image'),
     category: text('category'),
     difficultyLevel: difficultyLevelEnum('difficulty_level').notNull().default('BEGINNER'),
+    status: contentStatusEnum('status').notNull().default('DRAFT'),
     isActive: boolean('is_active').notNull().default(true),
     createdBy: text('created_by').notNull(),
     createdAt: timestampMs('created_at'),
@@ -56,8 +57,19 @@ export const books = pgTable(
     index('idx_book_slug').on(table.slug),
     index('idx_book_category').on(table.category),
     index('idx_book_difficulty').on(table.difficultyLevel),
+    index('idx_book_status').on(table.status),
+    index('idx_book_created_by').on(table.createdBy),
   ],
 );
+
+// ==================== Book Schemas ====================
+export const selectBookSchema = createSelectSchema(books);
+export const insertBookSchema = createInsertSchema(books, {
+  title: (s) => s.min(1).max(255),
+  slug: (s) => s.min(1).max(255),
+  description: (s) => s.max(2000).optional(),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateBookSchema = insertBookSchema.partial();
 
 // ==================== GradeBook Junction Table ====================
 export const gradeBooks = pgTable(
@@ -104,6 +116,7 @@ export const topics = pgTable(
       .notNull()
       .references(() => books.id, { onDelete: 'cascade' }),
     orderIndex: integer('order_index').notNull().default(0),
+    status: contentStatusEnum('status').notNull().default('DRAFT'),
     isActive: boolean('is_active').notNull().default(true),
     createdBy: text('created_by').notNull(),
     createdAt: timestampMs('created_at'),
@@ -114,6 +127,8 @@ export const topics = pgTable(
     index('idx_topic_book_active_order').on(table.bookId, table.isActive, table.orderIndex),
     index('idx_topic_slug').on(table.slug),
     index('idx_topic_book').on(table.bookId),
+    index('idx_topic_status').on(table.status),
+    index('idx_topic_created_by').on(table.createdBy),
   ],
 );
 
@@ -137,6 +152,7 @@ export const subtopics = pgTable(
       .notNull()
       .references(() => topics.id, { onDelete: 'cascade' }),
     orderIndex: integer('order_index').notNull().default(0),
+    status: contentStatusEnum('status').notNull().default('DRAFT'),
     isActive: boolean('is_active').notNull().default(true),
     createdBy: text('created_by').notNull(),
     createdAt: timestampMs('created_at'),
@@ -147,6 +163,7 @@ export const subtopics = pgTable(
     index('idx_subtopic_topic_active_order').on(table.topicId, table.isActive, table.orderIndex),
     index('idx_subtopic_slug').on(table.slug),
     index('idx_subtopic_topic').on(table.topicId),
+    index('idx_subtopic_status').on(table.status),
   ],
 );
 
@@ -174,6 +191,7 @@ export const notes = pgTable(
       onDelete: 'cascade',
     }),
     authorId: text('author_id').notNull(),
+    status: contentStatusEnum('status').notNull().default('DRAFT'),
     isPublic: boolean('is_public').notNull().default(true),
     isPremium: boolean('is_premium').notNull().default(false),
     price: real('price').notNull().default(0.0),
@@ -189,6 +207,7 @@ export const notes = pgTable(
     index('idx_note_topic').on(table.topicId),
     index('idx_note_subtopic').on(table.subtopicId),
     index('idx_note_author').on(table.authorId),
+    index('idx_note_status').on(table.status),
     index('idx_note_public_premium').on(table.isPublic, table.isPremium),
     index('idx_note_rating').on(table.ratingAvg),
     index('idx_note_downloads').on(table.downloadsCount),

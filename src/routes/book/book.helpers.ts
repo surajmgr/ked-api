@@ -14,6 +14,7 @@ export async function fetchBookBySlug(client: DrizzleClient, slug: string, grade
       author: books.author,
       isbn: books.isbn,
       coverImage: books.coverImage,
+      status: books.status,
       category: books.category,
       difficultyLevel: books.difficultyLevel,
       isActive: books.isActive,

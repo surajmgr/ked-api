@@ -7,6 +7,7 @@
     "dev": "tsx watch src/index.node.ts",
     "deploy:cf": "npm run biome && wrangler deploy --minify",
     "start": "tsx src/index.node.ts",
+    "type-check": "tsc --noEmit",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "biome": "biome check .",
     "biome:fix": "biome check --write .",

@@ -53,3 +53,32 @@ export const categoryTypeEnum = pgEnum('category_type', [
   'GAMIFICATION',
   'SOCIAL',
 ]);
+
+// Content status enum
+export const contentStatusEnum = pgEnum('content_status', ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'REJECTED']);
+
+// Review action enum
+export const reviewActionEnum = pgEnum('review_action', ['APPROVE', 'REJECT']);
+
+// Contribution action enum
+export const contributionActionEnum = pgEnum('contribution_action', [
+  'CREATE_NOTE',
+  'CREATE_BOOK',
+  'CREATE_TOPIC',
+  'CREATE_SUBTOPIC',
+  'READ_NOTE',
+  'ANSWER_QUESTION',
+  'UPVOTE_RECEIVED',
+  'DOWNVOTE_RECEIVED',
+  'CONTENT_APPROVED',
+  'CONTENT_REJECTED',
+  'QUESTION_ASKED',
+  'ANSWER_ACCEPTED',
+  'MODERATE_CONTENT',
+]);
+
+// Progress status enum
+export const progressStatusEnum = pgEnum('progress_status', ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED']);
+
+// Review task status enum
+export const reviewStatusEnum = pgEnum('review_status', ['PENDING', 'APPROVED', 'REJECTED']);
