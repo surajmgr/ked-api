@@ -16,7 +16,7 @@ const contentCreationResponseSchema = z.object({
     title: z.string(),
     status: z.enum(['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'REJECTED']),
     createdAt: z.union([z.string(), z.date()]).nullable(),
-  }).optional,
+  }).optional(),
   contribution: z
     .object({
       cpEarned: z.number(),
