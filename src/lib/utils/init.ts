@@ -55,21 +55,25 @@ export default function init() {
       const logger = provider.logger;
       const client = await provider.db.getClient();
       const gamificationService = createGamificationService(client, logger);
-      const moderationService = createModerationService(client, gamificationService, logger);
 
-      c.set('gamificationService', gamificationService);
-      c.set('moderationService', moderationService);
-
+      // Create TypesenseService first
       const typesenseApiKey = getEnvValue(c.env, 'TYPESENSE_API_KEY');
       const typesenseUrl = getEnvValue(c.env, 'TYPESENSE_URL');
+      let typesenseService: TypesenseService | undefined;
 
       if (typesenseApiKey && typesenseUrl) {
-        const typesenseService = new TypesenseService({
+        typesenseService = new TypesenseService({
           apiKey: typesenseApiKey,
           nodes: [{ url: typesenseUrl }],
         });
         c.set('typesenseService', typesenseService);
       }
+
+      // Create moderationService with typesenseService
+      const moderationService = createModerationService(client, gamificationService, logger, typesenseService);
+
+      c.set('gamificationService', gamificationService);
+      c.set('moderationService', moderationService);
 
       // We need to pass the service to the middleware factory
       await contributionMiddleware(gamificationService)(c, next);

@@ -1,8 +1,9 @@
 import type { DrizzleClient } from '@/db';
-import { reviewTasks, books, topics, notes, subtopics } from '@/db/schema';
+import { reviewTasks, books, topics, notes, subtopics, grades, gradeBooks } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import type { ILogger } from '../providers/interfaces';
 import type { GamificationService } from './gamification.service';
+import type { TypesenseService } from './typesense.service';
 
 export interface ModerationService {
   /**
@@ -61,6 +62,7 @@ export function createModerationService(
   db: DrizzleClient,
   gamificationService: GamificationService,
   logger: ILogger,
+  typesenseService?: TypesenseService,
 ): ModerationService {
   return {
     async createReviewTask({ contentId, contentType, authorId, priority = 0 }) {
@@ -178,6 +180,143 @@ export function createModerationService(
               : notes;
 
       await db.update(contentTable).set({ status: 'PUBLISHED' }).where(eq(contentTable.id, task.contentId));
+
+      // Update Typesense with PUBLISHED status
+      if (typesenseService) {
+        // Fetch full content for upsert
+        const [content] = await db.select().from(contentTable).where(eq(contentTable.id, task.contentId)).limit(1);
+
+        if (content) {
+          if (
+            task.contentType === 'note' ||
+            task.contentType === 'book' ||
+            task.contentType === 'topic' ||
+            task.contentType === 'subtopic'
+          ) {
+            // Fetch grades based on content type
+            let gradesArray: string[] | undefined;
+            let bookIdValue: string | undefined;
+            let topicIdValue: string | undefined;
+
+            if (task.contentType === 'book') {
+              const gradeData = await db
+                .select({
+                  gradeName: sql`${db.select({ name: grades.name }).from(grades).where(eq(grades.id, gradeBooks.gradeId))}`,
+                })
+                .from(gradeBooks)
+                .where(eq(gradeBooks.bookId, content.id));
+
+              const gradeNames = gradeData.map((g) => g.gradeName).filter(Boolean) as string[];
+              const tempGrades: string[] = [];
+              if ('category' in content && content.category) tempGrades.push(content.category as string);
+              if ('difficultyLevel' in content && content.difficultyLevel)
+                tempGrades.push(content.difficultyLevel as string);
+              tempGrades.push(...gradeNames);
+              if (tempGrades.length > 0) gradesArray = tempGrades;
+            } else if (task.contentType === 'topic') {
+              // biome-ignore lint/suspicious/noExplicitAny: required for type inference
+              bookIdValue = (content as any).bookId;
+              const parentBook = await db.query.books.findFirst({
+                // biome-ignore lint/suspicious/noExplicitAny: required for type inference
+                where: eq(books.id, (content as any).bookId),
+                columns: { category: true, difficultyLevel: true },
+              });
+              const gradeData = await db
+                .select({
+                  gradeName: sql`${db.select({ name: grades.name }).from(grades).where(eq(grades.id, gradeBooks.gradeId))}`,
+                })
+                .from(gradeBooks)
+                // biome-ignore lint/suspicious/noExplicitAny: required for type inference
+                .where(eq(gradeBooks.bookId, (content as any).bookId));
+
+              const gradeNames = gradeData.map((g) => g.gradeName).filter(Boolean) as string[];
+              const tempGrades: string[] = [];
+              if (parentBook?.category) tempGrades.push(parentBook.category);
+              if (parentBook?.difficultyLevel) tempGrades.push(parentBook.difficultyLevel);
+              tempGrades.push(...gradeNames);
+              if (tempGrades.length > 0) gradesArray = tempGrades;
+            } else if (task.contentType === 'subtopic') {
+              // biome-ignore lint/suspicious/noExplicitAny: required for type inference
+              topicIdValue = (content as any).topicId;
+              const parentTopic = await db.query.topics.findFirst({
+                // biome-ignore lint/suspicious/noExplicitAny: required for type inference
+                where: eq(topics.id, (content as any).topicId),
+                columns: { bookId: true },
+              });
+              if (parentTopic) {
+                const parentBook = await db.query.books.findFirst({
+                  where: eq(books.id, parentTopic.bookId),
+                  columns: { category: true, difficultyLevel: true },
+                });
+                const gradeData = await db
+                  .select({
+                    gradeName: sql`${db.select({ name: grades.name }).from(grades).where(eq(grades.id, gradeBooks.gradeId))}`,
+                  })
+                  .from(gradeBooks)
+                  .where(eq(gradeBooks.bookId, parentTopic.bookId));
+
+                const gradeNames = gradeData.map((g) => g.gradeName).filter(Boolean) as string[];
+                const tempGrades: string[] = [];
+                if (parentBook?.category) tempGrades.push(parentBook.category);
+                if (parentBook?.difficultyLevel) tempGrades.push(parentBook.difficultyLevel);
+                tempGrades.push(...gradeNames);
+                if (tempGrades.length > 0) gradesArray = tempGrades;
+              }
+            } else if (task.contentType === 'note') {
+              // biome-ignore lint/suspicious/noExplicitAny: required for type inference
+              topicIdValue = (content as any).topicId;
+              const parentTopic = await db.query.topics.findFirst({
+                // biome-ignore lint/suspicious/noExplicitAny: required for type inference
+                where: eq(topics.id, (content as any).topicId),
+                columns: { bookId: true },
+              });
+              if (parentTopic) {
+                const parentBook = await db.query.books.findFirst({
+                  where: eq(books.id, parentTopic.bookId),
+                  columns: { category: true, difficultyLevel: true },
+                });
+                const gradeData = await db
+                  .select({
+                    gradeName: sql`${db.select({ name: grades.name }).from(grades).where(eq(grades.id, gradeBooks.gradeId))}`,
+                  })
+                  .from(gradeBooks)
+                  .where(eq(gradeBooks.bookId, parentTopic.bookId));
+
+                const gradeNames = gradeData.map((g) => g.gradeName).filter(Boolean) as string[];
+                const tempGrades: string[] = [];
+                if (parentBook?.category) tempGrades.push(parentBook.category);
+                if (parentBook?.difficultyLevel) tempGrades.push(parentBook.difficultyLevel);
+                tempGrades.push(...gradeNames);
+                if (tempGrades.length > 0) gradesArray = tempGrades;
+              }
+            }
+
+            await typesenseService.upsertDocuments('content', [
+              {
+                id: content.id,
+                title: content.title,
+                slug: content.slug,
+                description: 'description' in content ? content.description || undefined : undefined,
+                content:
+                  task.contentType === 'note' && 'content' in content && content.content
+                    ? (content.content as string).substring(0, 1000)
+                    : undefined,
+                type: task.contentType,
+                status: 'PUBLISHED',
+                createdAt: content.createdAt ? new Date(content.createdAt).getTime() : Date.now(),
+                bookId: bookIdValue,
+                topicId: topicIdValue,
+                grades: gradesArray,
+                coverImage:
+                  task.contentType === 'book' && 'coverImage' in content && content.coverImage
+                    ? (content.coverImage as string)
+                    : undefined,
+                popularityScore: 0,
+              },
+            ]);
+          }
+        }
+      }
 
       // Award CP/XP for approved content
       const action =

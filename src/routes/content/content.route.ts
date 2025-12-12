@@ -1,5 +1,10 @@
 import { insertBookSchema } from '@/db/schema';
-import { jsonContentRaw, jsonReqContentRequired, jsonContentWithPagination, jsonContentBase } from '@/lib/openapi/helper';
+import {
+  jsonContentRaw,
+  jsonReqContentRequired,
+  jsonContentWithPagination,
+  jsonContentBase,
+} from '@/lib/openapi/helper';
 import { GLOBAL_RESPONSES, VALIDATION_ERROR_RESPONSE } from '@/lib/openapi/responses';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
 import { createRoute, z } from '@hono/zod-openapi';
@@ -9,13 +14,15 @@ const tags = ['Content Creation'];
 const contentCreationResponseSchema = z.object({
   success: z.boolean(),
   message: z.string(),
-  data: z.object({
-    id: z.string(),
-    slug: z.string(),
-    title: z.string(),
-    status: z.enum(['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'REJECTED']),
-    createdAt: z.union([z.string(), z.date()]).nullable(),
-  }).optional(),
+  data: z
+    .object({
+      id: z.string(),
+      slug: z.string(),
+      title: z.string(),
+      status: z.enum(['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'REJECTED']),
+      createdAt: z.union([z.string(), z.date()]).nullable(),
+    })
+    .optional(),
   contribution: z
     .object({
       cpEarned: z.number(),
@@ -202,8 +209,6 @@ export const createSubtopic = createRoute({
   },
 });
 export type CreateSubtopic = typeof createSubtopic;
-
-
 
 // Bulk Create Topics
 export const createBulkTopics = createRoute({

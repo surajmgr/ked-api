@@ -53,21 +53,19 @@ export const askQuestion: AppRouteHandler<AskQuestion> = async (c) => {
   // Indexing
   const typesenseService = c.var.typesenseService;
   if (typesenseService) {
-    await typesenseService.upsertDocuments('questions', [{
-      id: question.id,
-      title: question.title,
-      slug: question.slug,
-      content: question.content,
-      tags: question.tags || [],
-      createdAt: question.createdAt ? new Date(question.createdAt).getTime() : Date.now(),
-      authorId: question.authorId,
-      isSolved: false,
-      viewsCount: 0,
-      votesCount: 0,
-      answersCount: 0,
-      type: 'question',
-      popularityScore: 0,
-    }]);
+    await typesenseService.upsertDocuments('questions', [
+      {
+        id: question.id,
+        title: question.title,
+        slug: question.slug,
+        content: question.content,
+        topicId: question.topicId,
+        tags: question.tags || [],
+        isSolved: false,
+        popularityScore: 0,
+        createdAt: question.createdAt ? new Date(question.createdAt).getTime() : Date.now(),
+      },
+    ]);
   }
 
   return c.json(
@@ -321,6 +319,31 @@ export const acceptAnswer: AppRouteHandler<AcceptAnswer> = async (c) => {
     await invalidateContributionCache(cache, answer.authorId);
   }
 
+  // Update Typesense with isSolved status
+  const typesenseService = c.var.typesenseService;
+  if (typesenseService) {
+    // Fetch question details for upsert
+    const updatedQuestion = await client.query.questions.findFirst({
+      where: eq(questions.id, questionId),
+    });
+
+    if (updatedQuestion) {
+      await typesenseService.upsertDocuments('questions', [
+        {
+          id: updatedQuestion.id,
+          title: updatedQuestion.title,
+          slug: updatedQuestion.slug,
+          content: updatedQuestion.content,
+          topicId: updatedQuestion.topicId,
+          tags: updatedQuestion.tags || [],
+          isSolved: true,
+          popularityScore: 0,
+          createdAt: updatedQuestion.createdAt ? new Date(updatedQuestion.createdAt).getTime() : Date.now(),
+        },
+      ]);
+    }
+  }
+
   return c.json(
     {
       success: true,
@@ -417,7 +440,7 @@ export const getQuestion: AppRouteHandler<GetQuestion> = async (c) => {
 
   // Enriched Data
   let questionUserVote = null;
-  let answerUserVotes: Record<string, 'UPVOTE' | 'DOWNVOTE'> = {};
+  const answerUserVotes: Record<string, 'UPVOTE' | 'DOWNVOTE'> = {};
 
   if (user) {
     // Specific query for Question Vote
@@ -437,12 +460,7 @@ export const getQuestion: AppRouteHandler<GetQuestion> = async (c) => {
       const aVotes = await client
         .select()
         .from(votes)
-        .where(
-          and(
-            eq(votes.userId, user.id),
-            inArray(votes.answerId, aIds)
-          )
-        );
+        .where(and(eq(votes.userId, user.id), inArray(votes.answerId, aIds)));
 
       for (const v of aVotes) {
         if (v.answerId && v.voteType) {
@@ -462,7 +480,7 @@ export const getQuestion: AppRouteHandler<GetQuestion> = async (c) => {
           userVote: questionUserVote,
           isAuthor: user ? question.authorId === user.id : false,
         },
-        answers: questionAnswers.map(a => ({
+        answers: questionAnswers.map((a) => ({
           ...a,
           userVote: answerUserVotes[a.id] || null,
           isAuthor: user ? a.authorId === user.id : false,

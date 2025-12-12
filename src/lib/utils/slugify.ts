@@ -123,7 +123,8 @@ export async function generateUniqueSubtopicSlug(client: DrizzleClient, title: s
         .where(like(subtopics.slug, prefix))
         .orderBy(sql`slug DESC`)
         .limit(1),
-    async (uniqueSlug) => await client.select({ slug: subtopics.slug }).from(subtopics).where(eq(subtopics.slug, uniqueSlug)),
+    async (uniqueSlug) =>
+      await client.select({ slug: subtopics.slug }).from(subtopics).where(eq(subtopics.slug, uniqueSlug)),
   );
 }
 

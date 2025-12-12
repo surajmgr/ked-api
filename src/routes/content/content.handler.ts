@@ -1,6 +1,6 @@
 import type { AppRouteHandler } from '@/lib/types/helper';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
-import { books, topics, subtopics, notes } from '@/db/schema';
+import { books, topics, subtopics, notes, grades, gradeBooks } from '@/db/schema';
 import { eq, and, count, sql, or, ilike } from 'drizzle-orm';
 import { getCurrentSession } from '@/lib/utils/auth';
 import { ApiError } from '@/lib/utils/error';
@@ -51,8 +51,8 @@ export const listBooks: AppRouteHandler<ListBooks> = async (c) => {
   const client = await c.var.provider.db.getClient();
   const { page, limit, search, difficulty, category } = c.req.valid('query');
 
-  const pageNum = parseInt(page || '1');
-  const limitNum = parseInt(limit || '10');
+  const pageNum = parseInt(page || '1', 10);
+  const limitNum = parseInt(limit || '10', 10);
   const offset = (pageNum - 1) * limitNum;
 
   const whereConditions = [];
@@ -121,8 +121,8 @@ export const listTopics: AppRouteHandler<ListTopics> = async (c) => {
   const client = await c.var.provider.db.getClient();
   const { page, limit, bookId, bookSlug } = c.req.valid('query');
 
-  const pageNum = parseInt(page || '1');
-  const limitNum = parseInt(limit || '10');
+  const pageNum = parseInt(page || '1', 10);
+  const limitNum = parseInt(limit || '10', 10);
   const offset = (pageNum - 1) * limitNum;
 
   const whereConditions = [];
@@ -202,8 +202,8 @@ export const listSubtopics: AppRouteHandler<ListSubtopics> = async (c) => {
   const client = await c.var.provider.db.getClient();
   const { page, limit, topicId, topicSlug } = c.req.valid('query');
 
-  const pageNum = parseInt(page || '1');
-  const limitNum = parseInt(limit || '10');
+  const pageNum = parseInt(page || '1', 10);
+  const limitNum = parseInt(limit || '10', 10);
   const offset = (pageNum - 1) * limitNum;
 
   const whereConditions = [];
@@ -341,18 +341,38 @@ export const createBook: AppRouteHandler<CreateBook> = async (c) => {
     // Indexing
     const typesenseService = c.var.typesenseService;
     if (typesenseService) {
-      await typesenseService.upsertDocuments('content', [{
-        id: book.id,
-        title: book.title,
-        slug: book.slug,
-        description: book.description || undefined,
-        type: 'book',
-        createdAt: book.createdAt ? new Date(book.createdAt).getTime() : Date.now(),
-        category: book.category || undefined,
-        difficultyLevel: book.difficultyLevel,
-        isSponsored: false,
-        popularityScore: 0,
-      }]);
+      // Fetch grade names from gradeBooks junction table
+      const gradeData = await client
+        .select({
+          gradeName: sql`${client.select({ name: grades.name }).from(grades).where(eq(grades.id, gradeBooks.gradeId))}`,
+        })
+        .from(gradeBooks)
+        .where(eq(gradeBooks.bookId, book.id));
+
+      const gradeNames = gradeData.map((g) => g.gradeName).filter(Boolean) as string[];
+
+      // Build grades array: metadata + actual grade names
+      const gradesArray: string[] = [];
+      if (book.category) gradesArray.push(book.category);
+      if (book.difficultyLevel) gradesArray.push(book.difficultyLevel);
+      gradesArray.push(...gradeNames);
+
+      await typesenseService.upsertDocuments('content', [
+        {
+          id: book.id,
+          title: book.title,
+          slug: book.slug,
+          description: book.description || undefined,
+          type: 'book',
+          status: finalStatus,
+          createdAt: book.createdAt ? new Date(book.createdAt).getTime() : Date.now(),
+          bookId: undefined,
+          topicId: undefined,
+          grades: gradesArray.length > 0 ? gradesArray : undefined,
+          coverImage: book.coverImage || undefined,
+          popularityScore: 0,
+        },
+      ]);
     }
 
     return c.json(
@@ -439,17 +459,44 @@ export const createTopic: AppRouteHandler<CreateTopic> = async (c) => {
   // Indexing
   const typesenseService = c.var.typesenseService;
   if (typesenseService) {
-    await typesenseService.upsertDocuments('content', [{
-      id: topic.id,
-      title: topic.title,
-      slug: topic.slug,
-      description: topic.description || undefined,
-      type: 'topic',
-      createdAt: topic.createdAt ? new Date(topic.createdAt).getTime() : Date.now(),
-      bookId: topic.bookId,
-      isSponsored: false,
-      popularityScore: 0,
-    }]);
+    // Fetch parent book's grades
+    const parentBook = await client.query.books.findFirst({
+      where: eq(books.id, topic.bookId),
+      columns: { category: true, difficultyLevel: true },
+    });
+
+    // Fetch grade names from gradeBooks junction table for the parent book
+    const gradeData = await client
+      .select({
+        gradeName: sql`${client.select({ name: grades.name }).from(grades).where(eq(grades.id, gradeBooks.gradeId))}`,
+      })
+      .from(gradeBooks)
+      .where(eq(gradeBooks.bookId, topic.bookId));
+
+    const gradeNames = gradeData.map((g) => g.gradeName).filter(Boolean) as string[];
+
+    // Build grades array: metadata + actual grade names
+    const gradesArray: string[] = [];
+    if (parentBook?.category) gradesArray.push(parentBook.category);
+    if (parentBook?.difficultyLevel) gradesArray.push(parentBook.difficultyLevel);
+    gradesArray.push(...gradeNames);
+
+    await typesenseService.upsertDocuments('content', [
+      {
+        id: topic.id,
+        title: topic.title,
+        slug: topic.slug,
+        description: topic.description || undefined,
+        type: 'topic',
+        status: finalStatus,
+        createdAt: topic.createdAt ? new Date(topic.createdAt).getTime() : Date.now(),
+        bookId: topic.bookId,
+        topicId: undefined,
+        grades: gradesArray.length > 0 ? gradesArray : undefined,
+        coverImage: undefined,
+        popularityScore: 0,
+      },
+    ]);
   }
 
   // Award CP/XP if published
@@ -581,16 +628,52 @@ export const createSubtopic: AppRouteHandler<CreateSubtopic> = async (c) => {
     // Indexing
     const typesenseService = c.var.typesenseService;
     if (typesenseService) {
-      await typesenseService.upsertDocuments('content', [{
-        id: subtopic.id,
-        title: subtopic.title,
-        slug: subtopic.slug,
-        description: subtopic.description || undefined,
-        type: 'subtopic',
-        createdAt: subtopic.createdAt ? new Date(subtopic.createdAt).getTime() : Date.now(),
-        isSponsored: false,
-        popularityScore: 0,
-      }]);
+      // Fetch parent topic to get bookId
+      const parentTopic = await client.query.topics.findFirst({
+        where: eq(topics.id, subtopic.topicId),
+        columns: { bookId: true },
+      });
+
+      if (parentTopic) {
+        // Fetch parent book's grades
+        const parentBook = await client.query.books.findFirst({
+          where: eq(books.id, parentTopic.bookId),
+          columns: { category: true, difficultyLevel: true },
+        });
+
+        // Fetch grade names from gradeBooks junction table for the parent book
+        const gradeData = await client
+          .select({
+            gradeName: sql`${client.select({ name: grades.name }).from(grades).where(eq(grades.id, gradeBooks.gradeId))}`,
+          })
+          .from(gradeBooks)
+          .where(eq(gradeBooks.bookId, parentTopic.bookId));
+
+        const gradeNames = gradeData.map((g) => g.gradeName).filter(Boolean) as string[];
+
+        // Build grades array: metadata + actual grade names
+        const gradesArray: string[] = [];
+        if (parentBook?.category) gradesArray.push(parentBook.category);
+        if (parentBook?.difficultyLevel) gradesArray.push(parentBook.difficultyLevel);
+        gradesArray.push(...gradeNames);
+
+        await typesenseService.upsertDocuments('content', [
+          {
+            id: subtopic.id,
+            title: subtopic.title,
+            slug: subtopic.slug,
+            description: subtopic.description || undefined,
+            type: 'subtopic',
+            status: finalStatus,
+            createdAt: subtopic.createdAt ? new Date(subtopic.createdAt).getTime() : Date.now(),
+            bookId: undefined,
+            topicId: subtopic.topicId,
+            grades: gradesArray.length > 0 ? gradesArray : undefined,
+            coverImage: undefined,
+            popularityScore: 0,
+          },
+        ]);
+      }
     }
 
     return c.json(
@@ -777,6 +860,96 @@ export const publishContent: AppRouteHandler<PublishContent> = async (c) => {
       await invalidateContributionCache(cache, user.id);
     }
 
+    // Update Typesense with new status
+    const typesenseService = c.var.typesenseService;
+    if (typesenseService) {
+      // Fetch grades based on content type
+      let gradesArray: string[] | undefined;
+      let bookIdValue: string | undefined;
+      let topicIdValue: string | undefined;
+
+      if (contentType === 'book' && book) {
+        // For books: fetch grades directly
+        const gradeData = await client
+          .select({
+            gradeName: sql`${client.select({ name: grades.name }).from(grades).where(eq(grades.id, gradeBooks.gradeId))}`,
+          })
+          .from(gradeBooks)
+          .where(eq(gradeBooks.bookId, book.id));
+
+        const gradeNames = gradeData.map((g) => g.gradeName).filter(Boolean) as string[];
+        const tempGrades: string[] = [];
+        if (book.category) tempGrades.push(book.category);
+        if (book.difficultyLevel) tempGrades.push(book.difficultyLevel);
+        tempGrades.push(...gradeNames);
+        if (tempGrades.length > 0) gradesArray = tempGrades;
+      } else if (contentType === 'topic' && topic) {
+        // For topics: fetch from parent book
+        bookIdValue = topic.bookId;
+        const parentBook = await client.query.books.findFirst({
+          where: eq(books.id, topic.bookId),
+          columns: { category: true, difficultyLevel: true },
+        });
+        const gradeData = await client
+          .select({
+            gradeName: sql`${client.select({ name: grades.name }).from(grades).where(eq(grades.id, gradeBooks.gradeId))}`,
+          })
+          .from(gradeBooks)
+          .where(eq(gradeBooks.bookId, topic.bookId));
+
+        const gradeNames = gradeData.map((g) => g.gradeName).filter(Boolean) as string[];
+        const tempGrades: string[] = [];
+        if (parentBook?.category) tempGrades.push(parentBook.category);
+        if (parentBook?.difficultyLevel) tempGrades.push(parentBook.difficultyLevel);
+        tempGrades.push(...gradeNames);
+        if (tempGrades.length > 0) gradesArray = tempGrades;
+      } else if (contentType === 'note' && note) {
+        // For notes: fetch from parent book via topic
+        topicIdValue = note.topicId;
+        const parentTopic = await client.query.topics.findFirst({
+          where: eq(topics.id, note.topicId),
+          columns: { bookId: true },
+        });
+        if (parentTopic) {
+          const parentBook = await client.query.books.findFirst({
+            where: eq(books.id, parentTopic.bookId),
+            columns: { category: true, difficultyLevel: true },
+          });
+          const gradeData = await client
+            .select({
+              gradeName: sql`${client.select({ name: grades.name }).from(grades).where(eq(grades.id, gradeBooks.gradeId))}`,
+            })
+            .from(gradeBooks)
+            .where(eq(gradeBooks.bookId, parentTopic.bookId));
+
+          const gradeNames = gradeData.map((g) => g.gradeName).filter(Boolean) as string[];
+          const tempGrades: string[] = [];
+          if (parentBook?.category) tempGrades.push(parentBook.category);
+          if (parentBook?.difficultyLevel) tempGrades.push(parentBook.difficultyLevel);
+          tempGrades.push(...gradeNames);
+          if (tempGrades.length > 0) gradesArray = tempGrades;
+        }
+      }
+
+      await typesenseService.upsertDocuments('content', [
+        {
+          id,
+          title: content.title,
+          slug: content.slug,
+          description: 'description' in content ? content.description || undefined : undefined,
+          content: contentType === 'note' && note?.content ? note.content.substring(0, 1000) : undefined,
+          type: contentType,
+          status: finalStatus,
+          createdAt: content.createdAt ? new Date(content.createdAt).getTime() : Date.now(),
+          bookId: bookIdValue,
+          topicId: topicIdValue,
+          grades: gradesArray,
+          coverImage: contentType === 'book' && book?.coverImage ? book.coverImage : undefined,
+          popularityScore: 0,
+        },
+      ]);
+    }
+
     return c.json(
       {
         success: true,
@@ -935,21 +1108,25 @@ export const createBulkTopics: AppRouteHandler<CreateBulkTopics> = async (c) => 
   const status = isTrusted ? 'PUBLISHED' : 'PENDING_REVIEW';
 
   if (createdTopics.length > 0) {
-    await client.update(topics)
-      .set({ status: status as any })
-      .where(and(eq(topics.bookId, body.bookId), sql`${topics.id} IN ${createdTopics.map(t => t.id)}`));
+    await client
+      .update(topics)
+      .set({ status })
+      .where(and(eq(topics.bookId, body.bookId), sql`${topics.id} IN ${createdTopics.map((t) => t.id)}`));
   }
 
-  return c.json({
-    success: true,
-    message: 'Topics created successfully',
-    data: createdTopics.map(t => ({
-      id: t.id,
-      slug: t.slug,
-      title: t.title,
-      status,
-    }))
-  }, HttpStatusCodes.CREATED);
+  return c.json(
+    {
+      success: true,
+      message: 'Topics created successfully',
+      data: createdTopics.map((t) => ({
+        id: t.id,
+        slug: t.slug,
+        title: t.title,
+        status,
+      })),
+    },
+    HttpStatusCodes.CREATED,
+  );
 };
 
 export const createBulkSubtopics: AppRouteHandler<CreateBulkSubtopics> = async (c) => {
@@ -981,21 +1158,25 @@ export const createBulkSubtopics: AppRouteHandler<CreateBulkSubtopics> = async (
   const status = isTrusted ? 'PUBLISHED' : 'PENDING_REVIEW';
 
   if (createdSubtopics.length > 0) {
-    await client.update(subtopics)
-      .set({ status: status as any })
-      .where(and(eq(subtopics.topicId, body.topicId), sql`${subtopics.id} IN ${createdSubtopics.map(t => t.id)}`));
+    await client
+      .update(subtopics)
+      .set({ status })
+      .where(and(eq(subtopics.topicId, body.topicId), sql`${subtopics.id} IN ${createdSubtopics.map((t) => t.id)}`));
   }
 
-  return c.json({
-    success: true,
-    message: 'Subtopics created successfully',
-    data: createdSubtopics.map(t => ({
-      id: t.id,
-      slug: t.slug,
-      title: t.title,
-      status,
-    }))
-  }, HttpStatusCodes.CREATED);
+  return c.json(
+    {
+      success: true,
+      message: 'Subtopics created successfully',
+      data: createdSubtopics.map((t) => ({
+        id: t.id,
+        slug: t.slug,
+        title: t.title,
+        status,
+      })),
+    },
+    HttpStatusCodes.CREATED,
+  );
 };
 
 export const createNote: AppRouteHandler<CreateNote> = async (c) => {
@@ -1003,47 +1184,94 @@ export const createNote: AppRouteHandler<CreateNote> = async (c) => {
   const body = c.req.valid('json');
   const { user } = await getCurrentSession(c, true);
 
-  const [note] = await client.insert(notes).values({
-    title: body.title,
-    slug: body.slug,
-    content: body.content,
-    contentType: body.contentType,
-    topicId: body.topicId,
-    subtopicId: body.subtopicId,
-    authorId: user.id,
-    isPublic: body.isPublic,
-    isPremium: body.isPremium,
-    price: body.price,
-    status: 'DRAFT'
-  }).returning();
+  const [note] = await client
+    .insert(notes)
+    .values({
+      title: body.title,
+      slug: body.slug,
+      content: body.content,
+      contentType: body.contentType,
+      topicId: body.topicId,
+      subtopicId: body.subtopicId,
+      authorId: user.id,
+      isPublic: body.isPublic,
+      isPremium: body.isPremium,
+      price: body.price,
+      status: 'DRAFT',
+    })
+    .returning();
 
   // Indexing
   const typesenseService = c.var.typesenseService;
   if (typesenseService) {
-    await typesenseService.upsertDocuments('content', [{
-      id: note.id,
-      title: note.title,
-      slug: note.slug,
-      content: note.content ? note.content.substring(0, 1000) : '', // index snippet
-      type: 'note',
-      createdAt: note.createdAt ? new Date(note.createdAt).getTime() : Date.now(),
-      authorId: note.authorId,
-      isSponsored: false,
-      popularityScore: 0,
-    }]);
+    // Fetch parent topic to get bookId
+    const parentTopic = await client.query.topics.findFirst({
+      where: eq(topics.id, note.topicId),
+      columns: { bookId: true },
+    });
+
+    let gradesArray: string[] | undefined;
+    if (parentTopic) {
+      // Fetch parent book's grades
+      const parentBook = await client.query.books.findFirst({
+        where: eq(books.id, parentTopic.bookId),
+        columns: { category: true, difficultyLevel: true },
+      });
+
+      // Fetch grade names from gradeBooks junction table for the parent book
+      const gradeData = await client
+        .select({
+          gradeName: sql`${client.select({ name: grades.name }).from(grades).where(eq(grades.id, gradeBooks.gradeId))}`,
+        })
+        .from(gradeBooks)
+        .where(eq(gradeBooks.bookId, parentTopic.bookId));
+
+      const gradeNames = gradeData.map((g) => g.gradeName).filter(Boolean) as string[];
+
+      // Build grades array: metadata + actual grade names
+      const tempGrades: string[] = [];
+      if (parentBook?.category) tempGrades.push(parentBook.category);
+      if (parentBook?.difficultyLevel) tempGrades.push(parentBook.difficultyLevel);
+      tempGrades.push(...gradeNames);
+
+      if (tempGrades.length > 0) {
+        gradesArray = tempGrades;
+      }
+    }
+
+    await typesenseService.upsertDocuments('content', [
+      {
+        id: note.id,
+        title: note.title,
+        slug: note.slug,
+        content: note.content ? note.content.substring(0, 1000) : undefined, // index snippet
+        description: undefined,
+        type: 'note',
+        status: 'DRAFT',
+        createdAt: note.createdAt ? new Date(note.createdAt).getTime() : Date.now(),
+        bookId: undefined,
+        topicId: note.topicId,
+        grades: gradesArray,
+        coverImage: undefined,
+        popularityScore: 0,
+      },
+    ]);
   }
 
-  return c.json({
-    success: true,
-    message: 'Note created successfully',
-    data: {
-      id: note.id,
-      slug: note.slug,
-      title: note.title,
-      status: 'DRAFT' as const,
-      createdAt: note.createdAt,
-    }
-  }, HttpStatusCodes.CREATED);
+  return c.json(
+    {
+      success: true,
+      message: 'Note created successfully',
+      data: {
+        id: note.id,
+        slug: note.slug,
+        title: note.title,
+        status: 'DRAFT' as const,
+        createdAt: note.createdAt,
+      },
+    },
+    HttpStatusCodes.CREATED,
+  );
 };
 
 export const getNote: AppRouteHandler<GetNote> = async (c) => {
@@ -1074,25 +1302,28 @@ export const getNote: AppRouteHandler<GetNote> = async (c) => {
       isUnlocked = true;
     } else {
       if (!isUnlocked) {
-        content = content.slice(0, 200) + '... (Premium Content)';
+        content = `${content.slice(0, 200)}... (Premium Content)`;
       }
     }
   } else {
     isUnlocked = true;
   }
 
-  return c.json({
-    success: true,
-    data: {
-      ...note,
-      content,
-      contentType: note.contentType,
-      author: { id: note.authorId, name: 'Unknown' },
-      isUnlocked,
-      isLiked: false,
-    }
-  }, HttpStatusCodes.OK);
-}
+  return c.json(
+    {
+      success: true,
+      data: {
+        ...note,
+        content,
+        contentType: note.contentType,
+        author: { id: note.authorId, name: 'Unknown' },
+        isUnlocked,
+        isLiked: false,
+      },
+    },
+    HttpStatusCodes.OK,
+  );
+};
 
 export const deleteNote: AppRouteHandler<DeleteNote> = async (c) => {
   const client = await c.var.provider.db.getClient();
@@ -1113,11 +1344,14 @@ export const deleteNote: AppRouteHandler<DeleteNote> = async (c) => {
 
   await client.delete(notes).where(eq(notes.id, id));
 
-  return c.json({
-    success: true,
-    message: 'Note deleted successfully'
-  }, HttpStatusCodes.OK);
-}
+  return c.json(
+    {
+      success: true,
+      message: 'Note deleted successfully',
+    },
+    HttpStatusCodes.OK,
+  );
+};
 
 export const getSimilarContent: AppRouteHandler<GetSimilarContent> = async (c) => {
   const client = await c.var.provider.db.getClient();
@@ -1137,14 +1371,17 @@ export const getSimilarContent: AppRouteHandler<GetSimilarContent> = async (c) =
         id: s.id,
         title: s.title,
         slug: s.slug,
-        type: 'note',
-        similarity: 0.8
+        type: 'note' as const,
+        similarity: 0.8,
       });
     }
   }
 
-  return c.json({
-    success: true,
-    data: similar as any
-  }, HttpStatusCodes.OK);
+  return c.json(
+    {
+      success: true,
+      data: similar,
+    },
+    HttpStatusCodes.OK,
+  );
 };
