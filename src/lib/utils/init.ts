@@ -11,7 +11,9 @@ import { providerMiddleware } from '@/middleware/provider';
 import { requestLoggerMiddleware } from '@/middleware/logger';
 import { createGamificationService } from '../services/gamification.service';
 import { createModerationService } from '../services/moderation.service';
+import { TypesenseService } from '../services/typesense.service';
 import { contributionMiddleware } from '@/middleware/contribution';
+import { getEnvValue } from '../providers/factory';
 
 export function createRouter() {
   return new OpenAPIHono<AppBindings>({
@@ -57,6 +59,17 @@ export default function init() {
 
       c.set('gamificationService', gamificationService);
       c.set('moderationService', moderationService);
+
+      const typesenseApiKey = getEnvValue(c.env, 'TYPESENSE_API_KEY');
+      const typesenseUrl = getEnvValue(c.env, 'TYPESENSE_URL');
+
+      if (typesenseApiKey && typesenseUrl) {
+        const typesenseService = new TypesenseService({
+          apiKey: typesenseApiKey,
+          nodes: [{ url: typesenseUrl }],
+        });
+        c.set('typesenseService', typesenseService);
+      }
 
       // We need to pass the service to the middleware factory
       await contributionMiddleware(gamificationService)(c, next);

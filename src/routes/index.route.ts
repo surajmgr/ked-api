@@ -7,6 +7,8 @@ import moderation from './moderation/moderation.index';
 import learning from './learning/learning.index';
 import qa from './qa/qa.index';
 import content from './content/content.index';
+import search from './search/search.index';
+import typesense from './typesense/admin.typesense.index';
 
 export default function configureRoutes(app: AppOpenAPI) {
   const routes = [
@@ -31,6 +33,10 @@ export default function configureRoutes(app: AppOpenAPI) {
       route: moderation,
     },
     {
+      path: '/admin/typesense',
+      route: typesense,
+    },
+    {
       path: '/learning',
       route: learning,
     },
@@ -41,6 +47,10 @@ export default function configureRoutes(app: AppOpenAPI) {
     {
       path: '/content',
       route: content,
+    },
+    {
+      path: '/public/search',
+      route: search,
     },
   ];
 

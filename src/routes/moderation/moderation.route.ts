@@ -50,7 +50,7 @@ export const getTaskDetails = createRoute({
   tags,
   request: {
     params: z.object({
-      taskId: z.string().cuid2(),
+      taskId: z.cuid(),
     }),
   },
   responses: {
@@ -98,7 +98,7 @@ export const approveContent = createRoute({
   tags,
   request: {
     params: z.object({
-      taskId: z.string().cuid2(),
+      taskId: z.cuid(),
     }),
     body: jsonReqContentRequired({
       description: 'Approval feedback',
@@ -140,7 +140,7 @@ export const rejectContent = createRoute({
   tags,
   request: {
     params: z.object({
-      taskId: z.string().cuid2(),
+      taskId: z.cuid(),
     }),
     body: jsonReqContentRequired({
       description: 'Rejection reason and suggestions',

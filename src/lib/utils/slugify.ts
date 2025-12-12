@@ -1,4 +1,4 @@
-import { books, questions } from '@/db/schema/index';
+import { books, questions, topics, subtopics } from '@/db/schema/index';
 import type { DrizzleClient } from '@/db';
 import { eq, like, sql } from 'drizzle-orm';
 
@@ -96,6 +96,34 @@ export async function generateUniqueBookSlug(client: DrizzleClient, title: strin
         .orderBy(sql`slug DESC`)
         .limit(1),
     async (uniqueSlug) => await client.select({ slug: books.slug }).from(books).where(eq(books.slug, uniqueSlug)),
+  );
+}
+
+export async function generateUniqueTopicSlug(client: DrizzleClient, title: string) {
+  return generateUniqueInternal(
+    title,
+    async (prefix) =>
+      await client
+        .select({ slug: topics.slug })
+        .from(topics)
+        .where(like(topics.slug, prefix))
+        .orderBy(sql`slug DESC`)
+        .limit(1),
+    async (uniqueSlug) => await client.select({ slug: topics.slug }).from(topics).where(eq(topics.slug, uniqueSlug)),
+  );
+}
+
+export async function generateUniqueSubtopicSlug(client: DrizzleClient, title: string) {
+  return generateUniqueInternal(
+    title,
+    async (prefix) =>
+      await client
+        .select({ slug: subtopics.slug })
+        .from(subtopics)
+        .where(like(subtopics.slug, prefix))
+        .orderBy(sql`slug DESC`)
+        .limit(1),
+    async (uniqueSlug) => await client.select({ slug: subtopics.slug }).from(subtopics).where(eq(subtopics.slug, uniqueSlug)),
   );
 }
 

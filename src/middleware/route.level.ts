@@ -1,6 +1,6 @@
 import type { Role } from '@/schema/common.schema';
 
-export const PUBLIC_ROUTES = ['*/public/*', '/static/*', '/favicon.ico', '/doc'];
+export const PUBLIC_ROUTES = ['*/public/*', '/static/*', '/favicon.ico', '/doc', '/'];
 
 export const HYBRID_ROUTES = ['*/hybrid/*'];
 

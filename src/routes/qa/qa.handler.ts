@@ -1,7 +1,7 @@
 import type { AppRouteHandler } from '@/lib/types/helper';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
 import { questions, answers, votes } from '@/db/schema';
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, and, sql, desc, inArray } from 'drizzle-orm';
 import type { SQL, AnyColumn } from 'drizzle-orm';
 import { getCurrentSession } from '@/lib/utils/auth';
 import { ApiError } from '@/lib/utils/error';
@@ -48,6 +48,26 @@ export const askQuestion: AppRouteHandler<AskQuestion> = async (c) => {
   const cache = c.var.provider.cache;
   if (cache) {
     await invalidateContributionCache(cache, user.id);
+  }
+
+  // Indexing
+  const typesenseService = c.var.typesenseService;
+  if (typesenseService) {
+    await typesenseService.upsertDocuments('questions', [{
+      id: question.id,
+      title: question.title,
+      slug: question.slug,
+      content: question.content,
+      tags: question.tags || [],
+      createdAt: question.createdAt ? new Date(question.createdAt).getTime() : Date.now(),
+      authorId: question.authorId,
+      isSolved: false,
+      viewsCount: 0,
+      votesCount: 0,
+      answersCount: 0,
+      type: 'question',
+      popularityScore: 0,
+    }]);
   }
 
   return c.json(
@@ -366,6 +386,10 @@ export const getQuestion: AppRouteHandler<GetQuestion> = async (c) => {
   const client = await c.var.provider.db.getClient();
   const { questionId } = c.req.valid('param');
 
+  // Hybrid Auth
+  const session = await getCurrentSession(c, false);
+  const user = session?.user;
+
   // Get question
   const question = await client.query.questions.findFirst({
     where: eq(questions.id, questionId),
@@ -376,6 +400,7 @@ export const getQuestion: AppRouteHandler<GetQuestion> = async (c) => {
   }
 
   // Increment views count
+  // TODO: Use Redis for efficient view counting to avoid DB writes on every read
   await client
     .update(questions)
     .set({
@@ -390,6 +415,43 @@ export const getQuestion: AppRouteHandler<GetQuestion> = async (c) => {
     .where(eq(answers.questionId, questionId))
     .orderBy(desc(answers.votesCount), desc(answers.createdAt));
 
+  // Enriched Data
+  let questionUserVote = null;
+  let answerUserVotes: Record<string, 'UPVOTE' | 'DOWNVOTE'> = {};
+
+  if (user) {
+    // Specific query for Question Vote
+    const [qVote] = await client
+      .select()
+      .from(votes)
+      .where(and(eq(votes.userId, user.id), eq(votes.questionId, questionId)));
+
+    if (qVote) {
+      questionUserVote = qVote.voteType as 'UPVOTE' | 'DOWNVOTE';
+    }
+
+    if (questionAnswers.length > 0) {
+      const aIds = questionAnswers.map((a) => a.id);
+
+      // Optimization: Fetch all answer votes in one query using inArray
+      const aVotes = await client
+        .select()
+        .from(votes)
+        .where(
+          and(
+            eq(votes.userId, user.id),
+            inArray(votes.answerId, aIds)
+          )
+        );
+
+      for (const v of aVotes) {
+        if (v.answerId && v.voteType) {
+          answerUserVotes[v.answerId] = v.voteType as 'UPVOTE' | 'DOWNVOTE';
+        }
+      }
+    }
+  }
+
   return c.json(
     {
       success: true,
@@ -397,8 +459,14 @@ export const getQuestion: AppRouteHandler<GetQuestion> = async (c) => {
         question: {
           ...question,
           viewsCount: question.viewsCount + 1,
+          userVote: questionUserVote,
+          isAuthor: user ? question.authorId === user.id : false,
         },
-        answers: questionAnswers,
+        answers: questionAnswers.map(a => ({
+          ...a,
+          userVote: answerUserVotes[a.id] || null,
+          isAuthor: user ? a.authorId === user.id : false,
+        })),
       },
     },
     HttpStatusCodes.OK,

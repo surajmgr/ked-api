@@ -16,8 +16,8 @@ export const askQuestion = createRoute({
       schema: z.object({
         title: z.string().min(10).max(255),
         content: z.string().min(20),
-        topicId: z.string().cuid2(),
-        subtopicId: z.string().cuid2().optional(),
+        topicId: z.cuid(),
+        subtopicId: z.cuid().optional(),
         tags: z.array(z.string()).max(5).optional(),
       }),
     }),
@@ -53,7 +53,7 @@ export const answerQuestion = createRoute({
   tags,
   request: {
     params: z.object({
-      questionId: z.string().cuid2(),
+      questionId: z.cuid(),
     }),
     body: jsonReqContentRequired({
       description: 'Answer a question',
@@ -94,7 +94,7 @@ export const vote = createRoute({
   request: {
     params: z.object({
       type: z.enum(['questions', 'answers']),
-      id: z.string().cuid2(),
+      id: z.cuid(),
     }),
     body: jsonReqContentRequired({
       description: 'Vote on question or answer',
@@ -135,8 +135,8 @@ export const acceptAnswer = createRoute({
   tags,
   request: {
     params: z.object({
-      questionId: z.string().cuid2(),
-      answerId: z.string().cuid2(),
+      questionId: z.cuid(),
+      answerId: z.cuid(),
     }),
   },
   responses: {
@@ -164,13 +164,13 @@ export type AcceptAnswer = typeof acceptAnswer;
 
 // List Questions
 export const listQuestions = createRoute({
-  path: '/questions',
+  path: '/public/questions',
   method: 'get',
   tags,
   request: {
     query: z.object({
-      topicId: z.string().cuid2().optional(),
-      subtopicId: z.string().cuid2().optional(),
+      topicId: z.cuid().optional(),
+      subtopicId: z.cuid().optional(),
       solved: z.coerce.boolean().optional(),
       sortBy: z.enum(['recent', 'votes', 'views', 'unanswered']).default('recent'),
       limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -207,14 +207,14 @@ export const listQuestions = createRoute({
 });
 export type ListQuestions = typeof listQuestions;
 
-// Get Question Details
+// Get Question Details (Hybrid)
 export const getQuestion = createRoute({
-  path: '/questions/:questionId',
+  path: '/hybrid/questions/:questionId',
   method: 'get',
   tags,
   request: {
     params: z.object({
-      questionId: z.string().cuid2(),
+      questionId: z.cuid2(),
     }),
   },
   responses: {
@@ -240,6 +240,9 @@ export const getQuestion = createRoute({
             tags: z.array(z.string()).nullable(),
             createdAt: z.date(),
             updatedAt: z.date(),
+            // Hybrid fields
+            userVote: z.enum(['UPVOTE', 'DOWNVOTE']).nullable().optional(),
+            isAuthor: z.boolean().optional(),
           }),
           answers: z.array(
             z.object({
@@ -250,6 +253,9 @@ export const getQuestion = createRoute({
               votesCount: z.number(),
               isAccepted: z.boolean(),
               createdAt: z.date().nullable(),
+              // Hybrid fields
+              userVote: z.enum(['UPVOTE', 'DOWNVOTE']).nullable().optional(),
+              isAuthor: z.boolean().optional(),
             }),
           ),
         }),

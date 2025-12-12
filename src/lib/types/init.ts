@@ -4,6 +4,7 @@ import type { OpenAPIHono } from '@hono/zod-openapi';
 import type { IProvider } from '../providers/interfaces';
 import type { GamificationService } from '../services/gamification.service';
 import type { ModerationService } from '../services/moderation.service';
+import type { TypesenseService } from '../services/typesense.service';
 
 export interface AppBindings {
   Bindings: CloudflareBindings;
@@ -17,6 +18,7 @@ export interface AppBindings {
     };
     gamificationService?: GamificationService;
     moderationService?: ModerationService;
+    typesenseService?: TypesenseService;
   };
 }
 

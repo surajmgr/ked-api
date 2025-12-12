@@ -12,7 +12,7 @@ export const updateProgress = createRoute({
   tags,
   request: {
     params: z.object({
-      noteId: z.string().cuid2(),
+      noteId: z.cuid(),
     }),
     body: jsonReqContentRequired({
       description: 'Update learning progress',
@@ -140,7 +140,7 @@ export const getNoteProgress = createRoute({
   tags,
   request: {
     params: z.object({
-      noteId: z.string().cuid2(),
+      noteId: z.cuid(),
     }),
   },
   responses: {

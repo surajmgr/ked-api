@@ -29,6 +29,7 @@
     "hono": "^4.10.1",
     "ioredis": "^5.8.2",
     "postgres": "^3.4.7",
+    "typesense-ts": "^0.2.6",
     "zod": "^4.1.12"
   },
   "devDependencies": {
