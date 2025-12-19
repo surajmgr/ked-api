@@ -1,4 +1,4 @@
-import { configure } from 'typesense-ts';
+import { configure, setDefaultConfiguration } from 'typesense-ts';
 import type { ContentDocument, NoHitQueriesDocument, QuestionDocument, SuggestionDocument } from '../typesense/schema';
 import { ContentCollectionService } from './typesense/content.typesense.service';
 import { QuestionCollectionService } from './typesense/question.typesense.service';
@@ -70,7 +70,7 @@ export class TypesenseService {
     const nodeUrl = new URL(config.nodes[0].url);
     this.config = config;
 
-    this.client = configure({
+    const defaultConfig = {
       apiKey: config.apiKey,
       nodes: [
         {
@@ -81,20 +81,25 @@ export class TypesenseService {
       ],
       connectionTimeoutSeconds: 5,
       numRetries: 3,
-    });
+    };
+
+    this.client = configure(defaultConfig);
+    setDefaultConfiguration(defaultConfig);
+
+    const popularQueriesService = new PopularQueriesService(this.client);
 
     this.collections = {
       content: {
-        service: new ContentCollectionService(this.client),
+        service: new ContentCollectionService(this.client, popularQueriesService),
       },
       questions: {
-        service: new QuestionCollectionService(this.client),
+        service: new QuestionCollectionService(this.client, popularQueriesService),
       },
       no_hit_queries: {
         service: new NoHitQueriesService(this.client),
       },
       popular_queries: {
-        service: new PopularQueriesService(this.client),
+        service: popularQueriesService,
       },
     };
   }
@@ -162,8 +167,12 @@ export class TypesenseService {
       const rule = ANALYTICS_RULES[name];
       const ruleNameReal = rule.rule.name;
 
-      if ('upsert' in rule && typeof rule.upsert === 'function') {
-        await rule.upsert();
+      if (
+        'upsert' in rule &&
+        typeof rule.upsert === 'function' &&
+        ruleNameReal === ANALYTICS_RULES[analyticsRulesSchema.enum.popular_queries_aggregation].rule.name
+      ) {
+        console.log(JSON.stringify(await rule.upsert()));
       } else {
         const response = await fetch(`${this.config.nodes[0].url}/analytics/rules/${ruleNameReal}`, {
           method: 'PUT',
@@ -171,7 +180,7 @@ export class TypesenseService {
             'X-TYPESENSE-API-KEY': this.config.apiKey,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(rule),
+          body: JSON.stringify(rule.rule),
         });
 
         if (!response.ok) {

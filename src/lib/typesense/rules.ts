@@ -20,13 +20,19 @@ export const popularQueriesAnalyticsRule = analyticsRule({
   params: {
     source: {
       collections: ['ked_content', 'ked_questions'],
+      // @ts-expect-error
+      enable_auto_aggregation: false,
+      events: [
+        {
+          type: 'search',
+          name: 'popular_search_event',
+        },
+      ],
     },
     destination: {
       collection: 'ked_popular_queries',
     },
     limit: 10000,
-    expand_query: true,
-    // @ts-expect-error
     meta_fields: ['type'],
   },
 });

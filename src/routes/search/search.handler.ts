@@ -2,6 +2,20 @@ import type { AppRouteHandler } from '@/lib/types/helper';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
 import { ApiError } from '@/lib/utils/error';
 import type { SearchContent, SearchQuestion, SearchSuggestions } from './search.route';
+import type { Context } from 'hono';
+
+const getUserId = (c: Context): string => {
+  const auth = c.get('auth');
+  if (auth?.user?.id) return auth.user.id;
+
+  const ip = c.req.header('x-forwarded-for') || c.req.header('cf-connecting-ip');
+  if (ip) return ip;
+
+  const traceId = c.req.header('cf-ray') || c.req.header('x-request-id');
+  if (traceId) return traceId;
+
+  return 'anonymous';
+};
 
 export const searchContent: AppRouteHandler<SearchContent> = async (c) => {
   const params = c.req.valid('query');
@@ -12,7 +26,8 @@ export const searchContent: AppRouteHandler<SearchContent> = async (c) => {
   }
 
   try {
-    const results = await typesenseService.get('content').service.searchGeneral(params);
+    const userId = getUserId(c);
+    const results = await typesenseService.get('content').service.searchGeneral(params, userId);
 
     return c.json(
       {
@@ -36,7 +51,8 @@ export const searchQuestion: AppRouteHandler<SearchQuestion> = async (c) => {
   }
 
   try {
-    const results = await typesenseService.get('questions').service.searchGeneral(params);
+    const userId = getUserId(c);
+    const results = await typesenseService.get('questions').service.searchGeneral(params, userId);
 
     return c.json(
       {

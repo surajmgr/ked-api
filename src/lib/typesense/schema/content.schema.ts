@@ -1,13 +1,15 @@
 import z from 'zod';
 import { contentDocumentSchema } from '../schema';
 
+export const contentTypeSchema = z.enum(['book', 'topic', 'subtopic', 'note']);
+
 export const generalContentParamsSchema = z.object({
   q: z.string().min(1),
   page: z.coerce.number().optional().default(1),
   limit: z.coerce.number().optional().default(10),
   sortBy: z.enum(['relevance', 'newest', 'popular', 'views']).optional().default('relevance'),
-  isSponsored: z.boolean().optional(),
-  type: z.enum(['book', 'topic', 'subtopic', 'note', 'all']).optional(),
+  isSponsored: z.coerce.boolean().optional(),
+  type: contentTypeSchema.optional(),
 });
 
 export const generalContentSearchResultSchema = z.object({
@@ -32,5 +34,6 @@ export const generalContentSearchResultSchema = z.object({
   ),
 });
 
+export type ContentTypeSchema = z.infer<typeof contentTypeSchema>;
 export type GeneralContentParamsSchema = z.infer<typeof generalContentParamsSchema>;
 export type GeneralContentSearchResult = z.infer<typeof generalContentSearchResultSchema>;

@@ -2,6 +2,8 @@ import { type QuestionDocument, questionSchema } from '@/lib/typesense/schema';
 import type { Client } from '../typesense.service';
 import { multisearch, multisearchEntry } from 'typesense-ts';
 import type { GeneralQuestionParams } from '@/lib/typesense/schema/question.schema';
+import { SearchAnalytics } from './search.typesense.utility';
+import type { PopularQueriesService } from './analytics.typesense.service';
 
 abstract class CollectionService<_T> {
   constructor(
@@ -15,8 +17,15 @@ abstract class CollectionService<_T> {
 
 export class QuestionCollectionService extends CollectionService<QuestionDocument> {
   public collectionSchema = questionSchema;
+  private searchAnalytics = new SearchAnalytics({
+    fieldWeights: {
+      title: 10,
+      tags: 5,
+      content: 1,
+    },
+  });
+  private analytics: PopularQueriesService;
   private collectionName = this.collectionSchema.schema.name;
-
   private readonly sortByArray = {
     relevance: '_text_match:desc,popularityScore:desc',
     newest: 'createdAt:desc',
@@ -32,15 +41,16 @@ export class QuestionCollectionService extends CollectionService<QuestionDocumen
     default: [4, 2, 1],
   } as const;
 
-  constructor(client: Client) {
+  constructor(client: Client, analytics: PopularQueriesService) {
     super(client, questionSchema.schema.name);
+    this.analytics = analytics;
   }
 
   private getArrayValue<T>(array: Record<string, T>, key: string): T {
     return array[key] || array.default;
   }
 
-  async searchGeneral(params: GeneralQuestionParams) {
+  async searchGeneral(params: GeneralQuestionParams, userId: string) {
     try {
       let filterString = '';
 
@@ -73,6 +83,21 @@ export class QuestionCollectionService extends CollectionService<QuestionDocumen
 
       const { results } = await multisearch({ searches: [searchRequest] }, this.client);
       const result = results[0];
+
+      const { metrics, queriesToTrack } = this.searchAnalytics.safeAnalyze(params.q || '*', result);
+
+      if (metrics.isQualityQuery && queriesToTrack.length > 0) {
+        await Promise.all(
+          queriesToTrack.map((item) =>
+            this.analytics.sendPopularQueryEvents({
+              query: item.query,
+              userId: userId,
+              type: 'question',
+            }),
+          ),
+        );
+      }
+
       return {
         founded: result.found,
         page: result.page,

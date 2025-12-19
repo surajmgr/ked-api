@@ -93,7 +93,7 @@ export const popularQueriesSchema = collection({
   fields: [
     { name: 'q', type: 'string' },
     { name: 'count', type: 'int32' },
-    { name: 'type', type: 'string', facet: true },
+    { name: 'type', type: 'string', facet: true, optional: true },
   ],
 });
 

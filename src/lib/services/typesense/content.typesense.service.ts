@@ -5,6 +5,8 @@ import type { GeneralContentParamsSchema, GeneralContentSearchResult } from '@/l
 import type { DrizzleClient } from '@/db';
 import { books, gradeBooks, grades } from '@/db/schema';
 import { eq, inArray, sql } from 'drizzle-orm';
+import { SearchAnalytics } from './search.typesense.utility';
+import type { PopularQueriesService } from './analytics.typesense.service';
 
 abstract class CollectionService<_T> {
   constructor(
@@ -18,6 +20,14 @@ abstract class CollectionService<_T> {
 
 export class ContentCollectionService extends CollectionService<ContentDocument> {
   public collectionSchema = contentSchema;
+  private searchAnalytics = new SearchAnalytics({
+    fieldWeights: {
+      title: 10,
+      grades: 5,
+      description: 1,
+    },
+  });
+  private analytics: PopularQueriesService;
   private collectionName = this.collectionSchema.schema.name;
   private readonly sortByArray = {
     relevance: '',
@@ -27,28 +37,29 @@ export class ContentCollectionService extends CollectionService<ContentDocument>
   } as const;
 
   private readonly queryByArray = {
-    default: ['title', 'description', 'content'],
+    default: ['title', 'description', 'content', 'grades'],
   } as const;
 
   private readonly queryWeightsArray = {
-    default: [5, 3, 3],
+    default: [5, 3, 3, 1],
   } as const;
 
-  constructor(client: Client) {
+  constructor(client: Client, analytics: PopularQueriesService) {
     super(client, contentSchema.schema.name);
+    this.analytics = analytics;
   }
 
   private getArrayValue<T>(array: Record<string, T>, key: string): T {
     return array[key] || array.default;
   }
 
-  async searchGeneral(params: GeneralContentParamsSchema): Promise<GeneralContentSearchResult> {
+  async searchGeneral(params: GeneralContentParamsSchema, userId: string): Promise<GeneralContentSearchResult> {
     try {
       let filterString = '';
 
       filterString += 'status:=PUBLISHED';
 
-      if (params.type && params.type !== 'all') {
+      if (params.type) {
         filterString += ` && type:=${params.type}`;
       }
 
@@ -68,11 +79,27 @@ export class ContentCollectionService extends CollectionService<ContentDocument>
         num_typos: 2,
         prioritize_exact_match: true,
         drop_tokens_threshold: 1,
+        highlight_fields: [...queryBy],
       });
 
-      const { results } = await multisearch({ searches: [searchRequest] }, this.client);
+      const { results } = await multisearch({ searches: [searchRequest] });
       const result = results[0];
 
+      const { metrics, queriesToTrack } = this.searchAnalytics.safeAnalyze(params.q || '*', result);
+
+      if (metrics.isQualityQuery && queriesToTrack.length > 0) {
+        await Promise.all(
+          queriesToTrack.map((item) =>
+            this.analytics.sendPopularQueryEvents({
+              query: item.query,
+              userId: userId,
+              type: item.type || params.type || 'content',
+            }),
+          ),
+        );
+
+        console.log('Popular queries tracked:', queriesToTrack);
+      }
       return {
         founded: result.found,
         page: result.page,
@@ -140,6 +167,8 @@ export class ContentCollectionService extends CollectionService<ContentDocument>
           popularityScore: 0,
         };
       });
+
+      console.log(`Reindexed ${documents.length} documents`);
 
       await this.collectionSchema.documents.import(documents, { action: 'upsert' });
     } catch (error) {
