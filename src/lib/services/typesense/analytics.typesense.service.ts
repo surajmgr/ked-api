@@ -38,7 +38,7 @@ export class PopularQueriesService extends CollectionService<SuggestionDocument>
 	async getSuggestions(params: GeneralSuggestionParamsSchema) {
 		try {
 			const filterBy: string | undefined =
-				params.type === 'all' ? undefined : params.type === 'content' ? 'type:!=question' : `type:=${params.type}`;
+				params.type === 'all' ? undefined : params.type === 'content' ? 'q:!=question:*' : `q:=${params.type}:*`;
 			const searchRequest = multisearchEntry({
 				collection: this.collectionName,
 				q: params.prefix,
