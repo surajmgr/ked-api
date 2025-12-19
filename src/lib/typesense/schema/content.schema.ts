@@ -1,7 +1,5 @@
 import z from 'zod';
-import { contentDocumentSchema } from '../schema';
-
-export const contentTypeSchema = z.enum(['book', 'topic', 'subtopic', 'note']);
+import { contentDocumentSchema, contentTypeSchema } from '../schema';
 
 export const generalContentParamsSchema = z.object({
   q: z.string().min(1),
