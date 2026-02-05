@@ -1,6 +1,7 @@
 import { jsonContentRaw, jsonReqContentRequired } from '@/lib/openapi/helper';
 import { GLOBAL_RESPONSES, NOT_FOUND_RESPONSE, VALIDATION_ERROR_RESPONSE } from '@/lib/openapi/responses';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
+import { buildParams } from '@/schema/req.schema';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Q&A'];
@@ -52,8 +53,8 @@ export const answerQuestion = createRoute({
   method: 'post',
   tags,
   request: {
-    params: z.object({
-      questionId: z.cuid(),
+    params: buildParams({
+      questionId: z.cuid2(),
     }),
     body: jsonReqContentRequired({
       description: 'Answer a question',
@@ -92,9 +93,9 @@ export const vote = createRoute({
   method: 'post',
   tags,
   request: {
-    params: z.object({
+    params: buildParams({
       type: z.enum(['questions', 'answers']),
-      id: z.cuid(),
+      id: z.cuid2(),
     }),
     body: jsonReqContentRequired({
       description: 'Vote on question or answer',
@@ -134,9 +135,9 @@ export const acceptAnswer = createRoute({
   method: 'post',
   tags,
   request: {
-    params: z.object({
-      questionId: z.cuid(),
-      answerId: z.cuid(),
+    params: buildParams({
+      questionId: z.cuid2(),
+      answerId: z.cuid2(),
     }),
   },
   responses: {
@@ -213,7 +214,7 @@ export const getQuestion = createRoute({
   method: 'get',
   tags,
   request: {
-    params: z.object({
+    params: buildParams({
       questionId: z.cuid2(),
     }),
   },

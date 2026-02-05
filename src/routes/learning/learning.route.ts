@@ -1,6 +1,7 @@
 import { jsonContentRaw, jsonReqContentRequired } from '@/lib/openapi/helper';
 import { GLOBAL_RESPONSES, NOT_FOUND_RESPONSE, VALIDATION_ERROR_RESPONSE } from '@/lib/openapi/responses';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
+import { idParamsSchema } from '@/schema/req.schema';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Learning'];
@@ -11,9 +12,7 @@ export const updateProgress = createRoute({
   method: 'post',
   tags,
   request: {
-    params: z.object({
-      noteId: z.cuid(),
-    }),
+    params: idParamsSchema,
     body: jsonReqContentRequired({
       description: 'Update learning progress',
       schema: z.object({
@@ -139,9 +138,7 @@ export const getNoteProgress = createRoute({
   method: 'get',
   tags,
   request: {
-    params: z.object({
-      noteId: z.cuid(),
-    }),
+    params: idParamsSchema,
   },
   responses: {
     ...GLOBAL_RESPONSES,

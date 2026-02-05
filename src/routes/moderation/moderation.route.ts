@@ -1,6 +1,7 @@
 import { jsonContentRaw, jsonReqContentRequired } from '@/lib/openapi/helper';
 import { GLOBAL_RESPONSES, NOT_FOUND_RESPONSE, VALIDATION_ERROR_RESPONSE } from '@/lib/openapi/responses';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
+import { buildParams } from '@/schema/req.schema';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Moderation'];
@@ -49,8 +50,8 @@ export const getTaskDetails = createRoute({
   method: 'get',
   tags,
   request: {
-    params: z.object({
-      taskId: z.cuid(),
+    params: buildParams({
+      taskId: z.cuid2(),
     }),
   },
   responses: {
@@ -97,8 +98,8 @@ export const approveContent = createRoute({
   method: 'post',
   tags,
   request: {
-    params: z.object({
-      taskId: z.cuid(),
+    params: buildParams({
+      taskId: z.cuid2(),
     }),
     body: jsonReqContentRequired({
       description: 'Approval feedback',
@@ -139,8 +140,8 @@ export const rejectContent = createRoute({
   method: 'post',
   tags,
   request: {
-    params: z.object({
-      taskId: z.cuid(),
+    params: buildParams({
+      taskId: z.cuid2(),
     }),
     body: jsonReqContentRequired({
       description: 'Rejection reason and suggestions',

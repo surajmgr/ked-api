@@ -3,6 +3,7 @@ import { HttpStatusCodes } from '@/lib/utils/status.codes';
 import { jsonContentRaw, jsonReqContentRequired } from '@/lib/openapi/helper';
 import { GLOBAL_RESPONSES, VALIDATION_ERROR_RESPONSE } from '@/lib/openapi/responses';
 import { analyticsRulesSchema, collectionsSchema } from '@/lib/services/typesense.service';
+import { buildParams } from '@/schema/req.schema';
 
 export const createCollectionFunc = createRoute({
   tags: ['Admin'],
@@ -37,7 +38,7 @@ export const deleteCollectionFunc = createRoute({
   path: '/collections/:name',
   summary: 'Delete Typesense Collection',
   request: {
-    params: z.object({
+    params: buildParams({
       name: collectionsSchema,
     }),
   },
@@ -118,7 +119,7 @@ export const deleteAnalyticsRuleFunc = createRoute({
   path: '/analytics/rules/:name',
   summary: 'Delete Analytics Rule',
   request: {
-    params: z.object({
+    params: buildParams({
       name: analyticsRulesSchema,
     }),
   },

@@ -7,6 +7,7 @@ import {
 } from '@/lib/openapi/helper';
 import { GLOBAL_RESPONSES, VALIDATION_ERROR_RESPONSE } from '@/lib/openapi/responses';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
+import { idParamsSchema } from '@/schema/req.schema';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Content Creation'];
@@ -334,9 +335,7 @@ export const getNote = createRoute({
   method: 'get',
   tags: ['Notes'],
   request: {
-    params: z.object({
-      id: z.string(),
-    }),
+    params: idParamsSchema,
   },
   responses: {
     ...GLOBAL_RESPONSES,
@@ -374,9 +373,7 @@ export const deleteNote = createRoute({
   method: 'delete',
   tags: ['Notes'],
   request: {
-    params: z.object({
-      id: z.string(),
-    }),
+    params: idParamsSchema,
   },
   responses: {
     ...GLOBAL_RESPONSES,
@@ -393,9 +390,7 @@ export const getSimilarContent = createRoute({
   method: 'get',
   tags: ['Recommendation'],
   request: {
-    params: z.object({
-      id: z.string(),
-    }),
+    params: idParamsSchema,
   },
   responses: {
     ...GLOBAL_RESPONSES,
@@ -424,9 +419,7 @@ export const saveNoteDraft = createRoute({
   method: 'put',
   tags,
   request: {
-    params: z.object({
-      id: z.cuid(),
-    }),
+    params: idParamsSchema,
     body: jsonReqContentRequired({
       description: 'Save note draft (auto-save)',
       schema: z.object({
@@ -466,9 +459,7 @@ export const publishContent = createRoute({
   method: 'post',
   tags,
   request: {
-    params: z.object({
-      id: z.cuid(),
-    }),
+    params: idParamsSchema,
     body: jsonReqContentRequired({
       description: 'Publish content',
       schema: z.object({

@@ -24,6 +24,7 @@ import type {
 } from './content.route';
 import type { ModerationService } from '@/lib/services/moderation.service';
 import { invalidateContributionCache } from '@/middleware/contribution';
+import { getMinimalProfileById } from '@/lib/external/user';
 
 // Helper to determine content status based on user trust
 async function determineContentStatus(
@@ -1309,6 +1310,8 @@ export const getNote: AppRouteHandler<GetNote> = async (c) => {
     isUnlocked = true;
   }
 
+  const author = await getMinimalProfileById(note.authorId, c.env.AUTH_API_URL);
+
   return c.json(
     {
       success: true,
@@ -1316,7 +1319,7 @@ export const getNote: AppRouteHandler<GetNote> = async (c) => {
         ...note,
         content,
         contentType: note.contentType,
-        author: { id: note.authorId, name: 'Unknown' },
+        author,
         isUnlocked,
         isLiked: false,
       },

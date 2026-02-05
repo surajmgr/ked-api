@@ -231,6 +231,14 @@ export const getFeaturedNote: AppRouteHandler<GetFeaturedNote> = async (c) => {
     .orderBy(desc(notes.updatedAt), desc(notes.downloadsCount), desc(notes.ratingAvg), desc(notes.ratingCount))
     .limit(1);
 
+  if (!note) {
+    return c.json({
+      success: true,
+      message: 'No featured note found',
+      data: null,
+    }, HttpStatusCodes.OK);
+  }
+
   const author = await getMinimalProfileById(note.authorId, c.env.AUTH_API_URL);
 
   const responseJson = {

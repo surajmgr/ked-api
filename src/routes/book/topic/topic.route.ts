@@ -1,7 +1,7 @@
 import { selectTopicSubtopicsSchema } from '@/db/schema/tables/subtopic';
 import { getFeaturedNoteByTopicSchema, selectBookTopicsSchema, selectTopicBySlug } from '@/db/schema/tables/topic';
 import { jsonContent, jsonContentWithPagination } from '@/lib/openapi/helper';
-import { GLOBAL_RESPONSES } from '@/lib/openapi/responses';
+import { GLOBAL_RESPONSES, NOT_FOUND_RESPONSE } from '@/lib/openapi/responses';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
 import { idParamsSchema, cursorPaginationQuerySchema, buildParams } from '@/schema/req.schema';
 import { createRoute, z } from '@hono/zod-openapi';
