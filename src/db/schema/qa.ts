@@ -2,7 +2,7 @@ import { pgTable, text, boolean, integer, index, uniqueIndex } from 'drizzle-orm
 import { cuid2 } from 'drizzle-cuid2/postgres';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
-import { voteTypeEnum } from './enums';
+import { contentStatusEnum, contentVisibilityEnum, voteTypeEnum } from './enums';
 import { topics, subtopics } from './content';
 import { timestampMs } from './utils';
 
@@ -21,6 +21,8 @@ export const questions = pgTable(
       onDelete: 'cascade',
     }),
     authorId: text('author_id').notNull(),
+    status: contentStatusEnum('status').notNull().default('PUBLISHED'),
+    visibility: contentVisibilityEnum('visibility').notNull().default('PUBLIC'),
     isSolved: boolean('is_solved').notNull().default(false),
     viewsCount: integer('views_count').notNull().default(0),
     votesCount: integer('votes_count').notNull().default(0),
@@ -34,6 +36,8 @@ export const questions = pgTable(
     index('idx_question_topic').on(table.topicId),
     index('idx_question_subtopic').on(table.subtopicId),
     index('idx_question_author').on(table.authorId),
+    index('idx_question_status').on(table.status),
+    index('idx_question_visibility').on(table.visibility),
     index('idx_question_solved').on(table.isSolved),
     index('idx_question_votes').on(table.votesCount),
     index('idx_question_views').on(table.viewsCount),
@@ -118,7 +122,7 @@ export const comments = pgTable(
   'comments',
   {
     id: cuid2('id').defaultRandom().primaryKey(),
-    noteId: text('note_id')
+    questionId: text('question_id')
       .notNull()
       .references(() => questions.id, { onDelete: 'cascade' }),
     authorId: text('author_id').notNull(),
@@ -128,7 +132,7 @@ export const comments = pgTable(
     updatedAt: timestampMs('updated_at', true),
   },
   (table) => [
-    index('idx_comment_note').on(table.noteId),
+    index('idx_comment_question').on(table.questionId),
     index('idx_comment_author').on(table.authorId),
     index('idx_comment_parent').on(table.parentCommentId),
     index('idx_comment_created').on(table.createdAt),

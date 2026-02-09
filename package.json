@@ -15,7 +15,8 @@
     "db:migrate": "tsx ./src/db/migrate.ts",
     "db:migrate:prod": "NODE_ENV=production tsx ./src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "db:studio:prod": "NODE_ENV=production drizzle-kit studio"
+    "db:studio:prod": "NODE_ENV=production drizzle-kit studio",
+    "dbml": "tsx ./src/db/dbml.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.7",
@@ -38,8 +39,9 @@
     "@types/ioredis": "^4.28.10",
     "@types/node": "^24.8.0",
     "dotenv": "^17.2.3",
+    "drizzle-dbml-generator": "^0.10.0",
     "drizzle-kit": "^0.31.5",
-    "tsx": "^4.20.6",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "wrangler": "^4.43.0"
   }

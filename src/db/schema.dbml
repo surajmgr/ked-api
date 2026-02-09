@@ -1,0 +1,1067 @@
+enum access_level {
+  FREE
+  PREMIUM
+  PAID
+}
+
+enum activity_type {
+  QUESTION_ASKED
+  ANSWER_GIVEN
+  NOTE_SHARED
+  VOTE_CAST
+  COMMENT_MADE
+  CONTENT_FOLLOWED
+}
+
+enum auth_role {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+enum billing_interval {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
+enum category_type {
+  GENERAL
+  ENGAGEMENT
+  CONTRIBUTION
+  CONTENT_CREATION
+  COMMUNITY_SUPPORT
+  LEARNING
+  MILESTONE
+  GAMIFICATION
+  SOCIAL
+}
+
+enum collaborator_role {
+  OWNER
+  EDITOR
+  COMMENTER
+  VIEWER
+}
+
+enum content_status {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+}
+
+enum content_type {
+  MARKDOWN
+  HTML
+  TEXT
+}
+
+enum content_visibility {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}
+
+enum contribution_action {
+  CREATE_NOTE
+  CREATE_BOOK
+  CREATE_TOPIC
+  CREATE_SUBTOPIC
+  READ_NOTE
+  ANSWER_QUESTION
+  UPVOTE_RECEIVED
+  DOWNVOTE_RECEIVED
+  CONTENT_APPROVED
+  CONTENT_REJECTED
+  QUESTION_ASKED
+  ANSWER_ACCEPTED
+  MODERATE_CONTENT
+}
+
+enum criteria_type {
+  CONTRIBUTION_COUNT
+  REPUTATION
+  STREAK
+  QUESTION_COUNT
+  ANSWER_COUNT
+  NOTE_COUNT
+  UPVOTE_COUNT
+}
+
+enum difficulty_level {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum notification_type {
+  FOLLOW
+  NEW_QUESTION
+  NEW_ANSWER
+  NEW_NOTE
+  VOTE
+  ACHIEVEMENT
+  MENTION
+}
+
+enum order_status {
+  DRAFT
+  PENDING_PAYMENT
+  PAID
+  CANCELED
+  REFUNDED
+}
+
+enum payment_provider {
+  STRIPE
+  RAZORPAY
+  PAYPAL
+  MANUAL
+}
+
+enum payment_status {
+  REQUIRES_PAYMENT_METHOD
+  REQUIRES_CONFIRMATION
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELED
+  REFUNDED
+}
+
+enum product_type {
+  ONE_TIME
+  SUBSCRIPTION
+}
+
+enum progress_status {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum reaction_type {
+  LIKE
+  CLAP
+  HELPFUL
+  BOOKMARK
+}
+
+enum refund_status {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum resource_type {
+  BOOK
+  TOPIC
+  SUBTOPIC
+  NOTE
+  QUESTION
+  ANSWER
+}
+
+enum review_action {
+  APPROVE
+  REJECT
+}
+
+enum review_status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum subscription_status {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  INCOMPLETE
+}
+
+enum vote_type {
+  UPVOTE
+  DOWNVOTE
+}
+
+table achievements {
+  id varchar(24) [pk, not null]
+  name text [not null]
+  description text
+  badge_icon text
+  badge_color text [not null, default: '#FFD700']
+  criteria_type criteria_type [not null]
+  criteria_value integer [not null]
+  category category_type [not null, default: 'GENERAL']
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.959']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.959']
+
+  indexes {
+    criteria_type [name: 'idx_achievement_criteria']
+    category [name: 'idx_achievement_category']
+  }
+}
+
+table answers {
+  id varchar(24) [pk, not null]
+  content text [not null]
+  question_id text [not null]
+  author_id text [not null]
+  is_accepted boolean [not null, default: false]
+  votes_count integer [not null, default: 0]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.956']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.956']
+
+  indexes {
+    question_id [name: 'idx_answer_question']
+    author_id [name: 'idx_answer_author']
+    is_accepted [name: 'idx_answer_accepted']
+    votes_count [name: 'idx_answer_votes']
+    created_at [name: 'idx_answer_created']
+  }
+}
+
+table books {
+  id varchar(24) [pk, not null]
+  slug text [not null, unique]
+  title text [not null]
+  description text
+  author text
+  isbn text
+  cover_image text
+  category text
+  difficulty_level difficulty_level [not null, default: 'BEGINNER']
+  status content_status [not null, default: 'DRAFT']
+  visibility content_visibility [not null, default: 'PUBLIC']
+  access_level access_level [not null, default: 'FREE']
+  is_active boolean [not null, default: true]
+  created_by text [not null]
+  updated_by text
+  published_at timestamp
+  archived_at timestamp
+  deleted_at timestamp
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.950']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.950']
+
+  indexes {
+    is_active [name: 'idx_book_active']
+    slug [name: 'idx_book_slug']
+    category [name: 'idx_book_category']
+    difficulty_level [name: 'idx_book_difficulty']
+    status [name: 'idx_book_status']
+    visibility [name: 'idx_book_visibility']
+    access_level [name: 'idx_book_access_level']
+    created_by [name: 'idx_book_created_by']
+  }
+}
+
+table comments {
+  id varchar(24) [pk, not null]
+  question_id text [not null]
+  author_id text [not null]
+  content text [not null]
+  parent_comment_id text
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.958']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.958']
+
+  indexes {
+    question_id [name: 'idx_comment_question']
+    author_id [name: 'idx_comment_author']
+    parent_comment_id [name: 'idx_comment_parent']
+    created_at [name: 'idx_comment_created']
+  }
+}
+
+table content_comments {
+  id varchar(24) [pk, not null]
+  resource_type resource_type [not null]
+  resource_id text [not null]
+  author_id text [not null]
+  body text [not null]
+  parent_id text
+  anchor_json jsonb
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.962']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.962']
+
+  indexes {
+    (resource_type, resource_id) [name: 'idx_content_comments_resource']
+    author_id [name: 'idx_content_comments_author']
+    parent_id [name: 'idx_content_comments_parent']
+    created_at [name: 'idx_content_comments_created']
+  }
+}
+
+table content_follows {
+  id varchar(24) [pk, not null]
+  user_id text [not null]
+  book_id text
+  topic_id text
+  subtopic_id text
+  created_at timestamp [not null, default: `now()`]
+
+  indexes {
+    user_id [name: 'idx_content_follow_user']
+    book_id [name: 'idx_content_follow_book']
+    topic_id [name: 'idx_content_follow_topic']
+    subtopic_id [name: 'idx_content_follow_subtopic']
+    created_at [name: 'idx_content_follow_created']
+  }
+}
+
+table content_reactions {
+  id varchar(24) [pk, not null]
+  resource_type resource_type [not null]
+  resource_id text [not null]
+  user_id text [not null]
+  reaction reaction_type [not null]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.962']
+
+  indexes {
+    (resource_type, resource_id, user_id, reaction) [name: 'idx_content_reactions_unique', unique]
+    (resource_type, resource_id) [name: 'idx_content_reactions_resource']
+    user_id [name: 'idx_content_reactions_user']
+  }
+}
+
+table content_tags {
+  id varchar(24) [pk, not null]
+  tag_id text [not null]
+  resource_type resource_type [not null]
+  resource_id text [not null]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.962']
+
+  indexes {
+    (tag_id, resource_type, resource_id) [name: 'idx_content_tags_unique', unique]
+    tag_id [name: 'idx_content_tags_tag']
+    (resource_type, resource_id) [name: 'idx_content_tags_resource']
+  }
+}
+
+table contribution_ledger {
+  id varchar(24) [pk, not null]
+  user_id text [not null]
+  action contribution_action [not null]
+  cp_delta integer [not null]
+  xp_delta integer [not null]
+  reference_id text
+  reference_type text
+  metadata text
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.968']
+
+  indexes {
+    user_id [name: 'idx_contribution_ledger_user']
+    action [name: 'idx_contribution_ledger_action']
+    created_at [name: 'idx_contribution_ledger_created']
+    (reference_type, reference_id) [name: 'idx_contribution_ledger_reference']
+  }
+}
+
+table entitlements {
+  id varchar(24) [pk, not null]
+  user_id text [not null]
+  resource_type resource_type [not null]
+  resource_id text [not null]
+  access_level access_level [not null]
+  source text [not null]
+  order_item_id text
+  subscription_id text
+  starts_at timestamp
+  expires_at timestamp
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.967']
+
+  indexes {
+    (user_id, resource_type, resource_id, access_level) [name: 'idx_entitlements_unique', unique]
+    user_id [name: 'idx_entitlements_user']
+    (resource_type, resource_id) [name: 'idx_entitlements_resource']
+    expires_at [name: 'idx_entitlements_expires']
+    order_item_id [name: 'idx_entitlements_order_item']
+    subscription_id [name: 'idx_entitlements_subscription']
+  }
+}
+
+table example {
+  id varchar(24) [pk, not null]
+  name text [not null]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.968']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.968']
+}
+
+table follows {
+  id varchar(24) [pk, not null]
+  follower_id text [not null]
+  following_id text [not null]
+  created_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (follower_id, following_id) [name: 'idx_follow_unique', unique]
+    follower_id [name: 'idx_follow_follower']
+    following_id [name: 'idx_follow_following']
+    created_at [name: 'idx_follow_created']
+  }
+}
+
+table grade_books {
+  id varchar(24) [pk, not null]
+  grade_id text [not null]
+  book_id text [not null]
+  order_index integer [not null, default: 0]
+  is_active boolean [not null, default: true]
+  created_by text [not null]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.951']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.951']
+
+  indexes {
+    (grade_id, book_id) [name: 'idx_gradebook_unique', unique]
+    grade_id [name: 'idx_gradebook_grade']
+    book_id [name: 'idx_gradebook_book']
+    (is_active, order_index) [name: 'idx_gradebook_active_order']
+  }
+}
+
+table grades {
+  id varchar(24) [pk, not null]
+  name text [not null, unique]
+  slug text [not null, unique]
+  description text
+  order_index integer [not null, default: 0]
+  is_active boolean [not null, default: true]
+  created_by text [not null]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.948']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.948']
+
+  indexes {
+    (is_active, order_index) [name: 'idx_grade_active_order']
+    slug [name: 'idx_grade_slug']
+  }
+}
+
+table note_collaborators {
+  id varchar(24) [pk, not null]
+  note_id text [not null]
+  user_id text [not null]
+  role collaborator_role [not null, default: 'VIEWER']
+  added_by text [not null]
+  added_at timestamp [not null, default: '2026-02-09 15:12:27.961']
+  removed_at timestamp
+
+  indexes {
+    (note_id, user_id) [name: 'idx_note_collaborators_unique', unique]
+    note_id [name: 'idx_note_collaborators_note']
+    user_id [name: 'idx_note_collaborators_user']
+    role [name: 'idx_note_collaborators_role']
+  }
+}
+
+table note_documents {
+  id varchar(24) [pk, not null]
+  note_id text [not null]
+  content_json jsonb [not null]
+  content_text text
+  version integer [not null, default: 1]
+  updated_by text
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.961']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.961']
+
+  indexes {
+    note_id [name: 'idx_note_documents_note_unique', unique]
+    (note_id, version) [name: 'idx_note_documents_version']
+  }
+}
+
+table note_purchases {
+  id varchar(24) [pk, not null]
+  note_id text [not null]
+  buyer_id text [not null]
+  purchase_price real [not null]
+  created_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (note_id, buyer_id) [name: 'idx_note_purchase_unique', unique]
+    note_id [name: 'idx_note_purchase_note']
+    buyer_id [name: 'idx_note_purchase_buyer']
+    created_at [name: 'idx_note_purchase_created']
+  }
+}
+
+table note_ratings {
+  id varchar(24) [pk, not null]
+  note_id text [not null]
+  user_id text [not null]
+  rating smallint [not null]
+  review text
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (note_id, user_id) [name: 'idx_note_rating_unique', unique]
+    note_id [name: 'idx_note_rating_note']
+    user_id [name: 'idx_note_rating_user']
+    rating [name: 'idx_note_rating_value']
+    created_at [name: 'idx_note_rating_created']
+  }
+}
+
+table note_revisions {
+  id varchar(24) [pk, not null]
+  note_id text [not null]
+  version integer [not null]
+  content_json jsonb [not null]
+  created_by text [not null]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.961']
+
+  indexes {
+    (note_id, version) [name: 'idx_note_revisions_unique', unique]
+    note_id [name: 'idx_note_revisions_note']
+    created_by [name: 'idx_note_revisions_created_by']
+    created_at [name: 'idx_note_revisions_created']
+  }
+}
+
+table notes {
+  id varchar(24) [pk, not null]
+  slug text [not null, unique]
+  title text [not null]
+  content text [not null]
+  content_json jsonb
+  summary text
+  content_type content_type [not null, default: 'MARKDOWN']
+  topic_id text [not null]
+  subtopic_id text
+  author_id text [not null]
+  status content_status [not null, default: 'DRAFT']
+  visibility content_visibility [not null, default: 'PUBLIC']
+  access_level access_level [not null, default: 'FREE']
+  is_public boolean [not null, default: true]
+  is_premium boolean [not null, default: false]
+  price real [not null, default: 0]
+  currency char(3) [not null, default: 'USD']
+  price_cents integer [not null, default: 0]
+  downloads_count integer [not null, default: 0]
+  rating_avg real [not null, default: 0]
+  rating_count integer [not null, default: 0]
+  file_url text
+  published_at timestamp
+  deleted_at timestamp
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.953']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.953']
+
+  indexes {
+    slug [name: 'idx_note_slug']
+    topic_id [name: 'idx_note_topic']
+    subtopic_id [name: 'idx_note_subtopic']
+    author_id [name: 'idx_note_author']
+    status [name: 'idx_note_status']
+    visibility [name: 'idx_note_visibility']
+    access_level [name: 'idx_note_access_level']
+    (is_public, is_premium) [name: 'idx_note_public_premium']
+    rating_avg [name: 'idx_note_rating']
+    downloads_count [name: 'idx_note_downloads']
+  }
+}
+
+table notifications {
+  id varchar(24) [pk, not null]
+  user_id text [not null]
+  type notification_type [not null]
+  title text [not null]
+  message text
+  reference_id text
+  reference_type text
+  is_read boolean [not null, default: false]
+  created_at timestamp [not null, default: `now()`]
+
+  indexes {
+    user_id [name: 'idx_notification_user']
+    type [name: 'idx_notification_type']
+    is_read [name: 'idx_notification_read']
+    (user_id, is_read) [name: 'idx_notification_user_read']
+    created_at [name: 'idx_notification_created']
+    (reference_type, reference_id) [name: 'idx_notification_reference']
+  }
+}
+
+table order_items {
+  id varchar(24) [pk, not null]
+  order_id text [not null]
+  product_id text [not null]
+  price_id text
+  quantity integer [not null, default: 1]
+  unit_amount_cents integer [not null]
+  total_amount_cents integer [not null]
+  metadata jsonb
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.965']
+
+  indexes {
+    order_id [name: 'idx_order_items_order']
+    product_id [name: 'idx_order_items_product']
+    price_id [name: 'idx_order_items_price']
+    (order_id, product_id, price_id) [name: 'idx_order_items_unique', unique]
+  }
+}
+
+table orders {
+  id varchar(24) [pk, not null]
+  user_id text [not null]
+  status order_status [not null, default: 'DRAFT']
+  currency char(3) [not null, default: 'USD']
+  subtotal_cents integer [not null, default: 0]
+  tax_cents integer [not null, default: 0]
+  discount_cents integer [not null, default: 0]
+  total_cents integer [not null, default: 0]
+  provider_checkout_id text
+  metadata jsonb
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.964']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.964']
+
+  indexes {
+    user_id [name: 'idx_orders_user']
+    status [name: 'idx_orders_status']
+    (user_id, status) [name: 'idx_orders_user_status']
+    created_at [name: 'idx_orders_created']
+    provider_checkout_id [name: 'idx_orders_provider_checkout']
+  }
+}
+
+table payments {
+  id varchar(24) [pk, not null]
+  order_id text [not null]
+  provider payment_provider [not null]
+  provider_payment_id text
+  status payment_status [not null]
+  amount_cents integer [not null]
+  currency char(3) [not null, default: 'USD']
+  paid_at timestamp
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.966']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.966']
+
+  indexes {
+    order_id [name: 'idx_payments_order']
+    status [name: 'idx_payments_status']
+    provider [name: 'idx_payments_provider']
+    provider_payment_id [name: 'idx_payments_provider_id']
+    created_at [name: 'idx_payments_created']
+  }
+}
+
+table product_content_grants {
+  id varchar(24) [pk, not null]
+  product_id text [not null]
+  resource_type resource_type [not null]
+  resource_id text [not null]
+  access_level access_level [not null, default: 'PAID']
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.964']
+
+  indexes {
+    (product_id, resource_type, resource_id) [name: 'idx_product_content_grants_unique', unique]
+    product_id [name: 'idx_product_content_grants_product']
+    (resource_type, resource_id) [name: 'idx_product_content_grants_resource']
+  }
+}
+
+table product_prices {
+  id varchar(24) [pk, not null]
+  product_id text [not null]
+  currency char(3) [not null, default: 'USD']
+  unit_amount_cents integer [not null]
+  billing_interval billing_interval
+  interval_count integer
+  is_active boolean [not null, default: true]
+  provider_price_id text
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.963']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.963']
+
+  indexes {
+    product_id [name: 'idx_product_prices_product']
+    is_active [name: 'idx_product_prices_active']
+    currency [name: 'idx_product_prices_currency']
+    provider_price_id [name: 'idx_product_prices_provider']
+    (product_id, currency, unit_amount_cents, billing_interval, interval_count) [name: 'idx_product_prices_unique', unique]
+  }
+}
+
+table products {
+  id varchar(24) [pk, not null]
+  slug text [not null, unique]
+  name text [not null]
+  description text
+  product_type product_type [not null]
+  is_active boolean [not null, default: true]
+  metadata jsonb
+  created_by text [not null]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.963']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.963']
+
+  indexes {
+    is_active [name: 'idx_products_active']
+    product_type [name: 'idx_products_type']
+    created_by [name: 'idx_products_created_by']
+    slug [name: 'idx_products_slug']
+  }
+}
+
+table questions {
+  id varchar(24) [pk, not null]
+  slug text [not null, unique]
+  title text [not null]
+  content text [not null]
+  topic_id text [not null]
+  subtopic_id text
+  author_id text [not null]
+  status content_status [not null, default: 'PUBLISHED']
+  visibility content_visibility [not null, default: 'PUBLIC']
+  is_solved boolean [not null, default: false]
+  views_count integer [not null, default: 0]
+  votes_count integer [not null, default: 0]
+  answers_count integer [not null, default: 0]
+  tags text[]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.955']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.955']
+
+  indexes {
+    slug [name: 'idx_question_slug']
+    topic_id [name: 'idx_question_topic']
+    subtopic_id [name: 'idx_question_subtopic']
+    author_id [name: 'idx_question_author']
+    status [name: 'idx_question_status']
+    visibility [name: 'idx_question_visibility']
+    is_solved [name: 'idx_question_solved']
+    votes_count [name: 'idx_question_votes']
+    views_count [name: 'idx_question_views']
+    created_at [name: 'idx_question_created']
+    tags [name: 'idx_question_tags']
+  }
+}
+
+table ranks {
+  id varchar(24) [pk, not null]
+  name text [not null, unique]
+  min_reputation integer [not null]
+  max_reputation integer
+  description text
+  color text [not null, default: '#808080']
+  icon text
+  privileges text[]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.958']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.958']
+
+  indexes {
+    name [name: 'idx_rank_name']
+    (min_reputation, max_reputation) [name: 'idx_rank_reputation']
+  }
+}
+
+table refunds {
+  id varchar(24) [pk, not null]
+  payment_id text [not null]
+  provider_refund_id text
+  status refund_status [not null, default: 'PENDING']
+  amount_cents integer [not null]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.966']
+
+  indexes {
+    payment_id [name: 'idx_refunds_payment']
+    status [name: 'idx_refunds_status']
+    provider_refund_id [name: 'idx_refunds_provider_id']
+  }
+}
+
+table review_tasks {
+  id varchar(24) [pk, not null]
+  content_id text [not null]
+  content_type text [not null]
+  author_id text [not null]
+  status review_status [not null, default: 'PENDING']
+  reviewed_by text
+  reviewed_at timestamp [not null, default: '2026-02-09 15:12:27.969']
+  rejection_reason text
+  priority integer [not null, default: 0]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.969']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.969']
+
+  indexes {
+    content_id [name: 'idx_review_task_content']
+    author_id [name: 'idx_review_task_author']
+    status [name: 'idx_review_task_status']
+    priority [name: 'idx_review_task_priority']
+    created_at [name: 'idx_review_task_created']
+    reviewed_by [name: 'idx_review_task_reviewer']
+  }
+}
+
+table subscriptions {
+  id varchar(24) [pk, not null]
+  user_id text [not null]
+  product_id text [not null]
+  price_id text
+  provider payment_provider [not null]
+  provider_customer_id text
+  provider_subscription_id text
+  status subscription_status [not null]
+  current_period_start timestamp
+  current_period_end timestamp
+  cancel_at_period_end boolean [not null, default: false]
+  canceled_at timestamp
+  ended_at timestamp
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.966']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.966']
+
+  indexes {
+    user_id [name: 'idx_subscriptions_user']
+    status [name: 'idx_subscriptions_status']
+    (user_id, status) [name: 'idx_subscriptions_user_status']
+    provider_subscription_id [name: 'idx_subscriptions_provider_sub']
+  }
+}
+
+table subtopics {
+  id varchar(24) [pk, not null]
+  slug text [not null, unique]
+  title text [not null]
+  description text
+  topic_id text [not null]
+  order_index integer [not null, default: 0]
+  status content_status [not null, default: 'DRAFT']
+  visibility content_visibility [not null, default: 'PUBLIC']
+  is_active boolean [not null, default: true]
+  created_by text [not null]
+  updated_by text
+  published_at timestamp
+  archived_at timestamp
+  deleted_at timestamp
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.952']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.952']
+
+  indexes {
+    (topic_id, order_index) [name: 'idx_subtopic_topic_order', unique]
+    (topic_id, is_active, order_index) [name: 'idx_subtopic_topic_active_order']
+    slug [name: 'idx_subtopic_slug']
+    topic_id [name: 'idx_subtopic_topic']
+    status [name: 'idx_subtopic_status']
+    visibility [name: 'idx_subtopic_visibility']
+  }
+}
+
+table tags {
+  id varchar(24) [pk, not null]
+  slug text [not null, unique]
+  name text [not null]
+  description text
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.962']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.962']
+
+  indexes {
+    slug [name: 'idx_tags_slug']
+    name [name: 'idx_tags_name']
+  }
+}
+
+table topics {
+  id varchar(24) [pk, not null]
+  title text [not null]
+  slug text [not null, unique]
+  description text
+  book_id text [not null]
+  order_index integer [not null, default: 0]
+  status content_status [not null, default: 'DRAFT']
+  visibility content_visibility [not null, default: 'PUBLIC']
+  is_active boolean [not null, default: true]
+  created_by text [not null]
+  updated_by text
+  published_at timestamp
+  archived_at timestamp
+  deleted_at timestamp
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.952']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.952']
+
+  indexes {
+    (book_id, order_index) [name: 'idx_topic_book_order', unique]
+    (book_id, is_active, order_index) [name: 'idx_topic_book_active_order']
+    slug [name: 'idx_topic_slug']
+    book_id [name: 'idx_topic_book']
+    status [name: 'idx_topic_status']
+    visibility [name: 'idx_topic_visibility']
+    created_by [name: 'idx_topic_created_by']
+  }
+}
+
+table user_achievements {
+  id varchar(24) [pk, not null]
+  user_id text [not null]
+  achievement_id text [not null]
+  earned_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (user_id, achievement_id) [name: 'idx_user_achievement_unique', unique]
+    user_id [name: 'idx_user_achievement_user']
+    achievement_id [name: 'idx_user_achievement_achievement']
+    earned_at [name: 'idx_user_achievement_earned']
+  }
+}
+
+table user_activities {
+  id varchar(24) [pk, not null]
+  user_id text [not null]
+  activity_type activity_type [not null]
+  points_earned integer [not null, default: 0]
+  reference_id text
+  reference_type text
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.959']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.959']
+
+  indexes {
+    user_id [name: 'idx_user_activity_user']
+    activity_type [name: 'idx_user_activity_type']
+    created_at [name: 'idx_user_activity_created']
+    (reference_type, reference_id) [name: 'idx_user_activity_reference']
+  }
+}
+
+table user_profiles {
+  id varchar(24) [pk, not null]
+  user_id text [not null, unique]
+  display_name text
+  bio text
+  avatar text
+  contribution_points integer [not null, default: 0]
+  xp integer [not null, default: 0]
+  trusted_status boolean [not null, default: false]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.968']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.968']
+
+  indexes {
+    user_id [name: 'idx_user_profile_user_id']
+    contribution_points [name: 'idx_user_profile_cp']
+    xp [name: 'idx_user_profile_xp']
+    trusted_status [name: 'idx_user_profile_trusted']
+  }
+}
+
+table user_progress {
+  id varchar(24) [pk, not null]
+  user_id text [not null]
+  note_id text [not null]
+  status progress_status [not null, default: 'NOT_STARTED']
+  started_at timestamp [not null, default: '2026-02-09 15:12:27.969']
+  completed_at timestamp [not null, default: '2026-02-09 15:12:27.969']
+  last_read_at timestamp [not null, default: '2026-02-09 15:12:27.969']
+  reading_time_seconds integer [not null, default: 0]
+  bookmarked boolean [not null, default: false]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.969']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.969']
+
+  indexes {
+    (user_id, note_id) [name: 'idx_user_progress_unique', unique]
+    user_id [name: 'idx_user_progress_user']
+    note_id [name: 'idx_user_progress_note']
+    status [name: 'idx_user_progress_status']
+    bookmarked [name: 'idx_user_progress_bookmarked']
+    last_read_at [name: 'idx_user_progress_last_read']
+  }
+}
+
+table user_tag_follows {
+  id varchar(24) [pk, not null]
+  user_id text [not null]
+  tag_id text [not null]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.963']
+
+  indexes {
+    (user_id, tag_id) [name: 'idx_user_tag_follows_unique', unique]
+    user_id [name: 'idx_user_tag_follows_user']
+    tag_id [name: 'idx_user_tag_follows_tag']
+  }
+}
+
+table votes {
+  id varchar(24) [pk, not null]
+  user_id text [not null]
+  question_id text
+  answer_id text
+  vote_type vote_type [not null]
+  created_at timestamp [not null, default: '2026-02-09 15:12:27.958']
+  updated_at timestamp [not null, default: '2026-02-09 15:12:27.958']
+
+  indexes {
+    (user_id, question_id) [name: 'idx_vote_user_question', unique]
+    (user_id, answer_id) [name: 'idx_vote_user_answer', unique]
+    user_id [name: 'idx_vote_user']
+    question_id [name: 'idx_vote_question']
+    answer_id [name: 'idx_vote_answer']
+  }
+}
+
+ref answers_question_id_questions_id_fk: answers.question_id > questions.id [delete: cascade, update: no action]
+
+ref comments_question_id_questions_id_fk: comments.question_id > questions.id [delete: cascade, update: no action]
+
+ref content_follows_book_id_books_id_fk: content_follows.book_id > books.id [delete: cascade, update: no action]
+
+ref content_follows_topic_id_topics_id_fk: content_follows.topic_id > topics.id [delete: cascade, update: no action]
+
+ref content_follows_subtopic_id_subtopics_id_fk: content_follows.subtopic_id > subtopics.id [delete: cascade, update: no action]
+
+ref content_tags_tag_id_tags_id_fk: content_tags.tag_id > tags.id [delete: cascade, update: no action]
+
+ref entitlements_order_item_id_order_items_id_fk: entitlements.order_item_id > order_items.id [delete: set null, update: no action]
+
+ref entitlements_subscription_id_subscriptions_id_fk: entitlements.subscription_id > subscriptions.id [delete: set null, update: no action]
+
+ref grade_books_grade_id_grades_id_fk: grade_books.grade_id > grades.id [delete: cascade, update: no action]
+
+ref grade_books_book_id_books_id_fk: grade_books.book_id > books.id [delete: cascade, update: no action]
+
+ref note_collaborators_note_id_notes_id_fk: note_collaborators.note_id > notes.id [delete: cascade, update: no action]
+
+ref note_documents_note_id_notes_id_fk: note_documents.note_id > notes.id [delete: cascade, update: no action]
+
+ref note_purchases_note_id_notes_id_fk: note_purchases.note_id > notes.id [delete: cascade, update: no action]
+
+ref note_ratings_note_id_notes_id_fk: note_ratings.note_id > notes.id [delete: cascade, update: no action]
+
+ref note_revisions_note_id_notes_id_fk: note_revisions.note_id > notes.id [delete: cascade, update: no action]
+
+ref notes_topic_id_topics_id_fk: notes.topic_id > topics.id [delete: cascade, update: no action]
+
+ref notes_subtopic_id_subtopics_id_fk: notes.subtopic_id > subtopics.id [delete: cascade, update: no action]
+
+ref order_items_order_id_orders_id_fk: order_items.order_id > orders.id [delete: cascade, update: no action]
+
+ref order_items_product_id_products_id_fk: order_items.product_id > products.id [delete: restrict, update: no action]
+
+ref order_items_price_id_product_prices_id_fk: order_items.price_id > product_prices.id [delete: set null, update: no action]
+
+ref payments_order_id_orders_id_fk: payments.order_id > orders.id [delete: cascade, update: no action]
+
+ref product_content_grants_product_id_products_id_fk: product_content_grants.product_id > products.id [delete: cascade, update: no action]
+
+ref product_prices_product_id_products_id_fk: product_prices.product_id > products.id [delete: cascade, update: no action]
+
+ref questions_topic_id_topics_id_fk: questions.topic_id > topics.id [delete: cascade, update: no action]
+
+ref questions_subtopic_id_subtopics_id_fk: questions.subtopic_id > subtopics.id [delete: cascade, update: no action]
+
+ref refunds_payment_id_payments_id_fk: refunds.payment_id > payments.id [delete: cascade, update: no action]
+
+ref subscriptions_product_id_products_id_fk: subscriptions.product_id > products.id [delete: restrict, update: no action]
+
+ref subscriptions_price_id_product_prices_id_fk: subscriptions.price_id > product_prices.id [delete: set null, update: no action]
+
+ref subtopics_topic_id_topics_id_fk: subtopics.topic_id > topics.id [delete: cascade, update: no action]
+
+ref topics_book_id_books_id_fk: topics.book_id > books.id [delete: cascade, update: no action]
+
+ref user_achievements_achievement_id_achievements_id_fk: user_achievements.achievement_id > achievements.id [delete: cascade, update: no action]
+
+ref user_progress_note_id_notes_id_fk: user_progress.note_id > notes.id [delete: cascade, update: no action]
+
+ref user_tag_follows_tag_id_tags_id_fk: user_tag_follows.tag_id > tags.id [delete: cascade, update: no action]
+
+ref votes_question_id_questions_id_fk: votes.question_id > questions.id [delete: cascade, update: no action]
+
+ref votes_answer_id_answers_id_fk: votes.answer_id > answers.id [delete: cascade, update: no action]

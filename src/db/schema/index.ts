@@ -13,6 +13,13 @@ export * from './gamification';
 // Export social schemas
 export * from './social';
 
+// Export collaboration & taxonomy schemas
+export * from './collaboration';
+export * from './taxonomy';
+
+// Export commerce schemas
+export * from './commerce';
+
 // Export example schemas;
 export * from './example';
 
@@ -99,6 +106,80 @@ export type InsertNotePurchase = InferInsertModel<typeof notePurchases>;
 
 export type NoteRating = InferSelectModel<typeof noteRatings>;
 export type InsertNoteRating = InferInsertModel<typeof noteRatings>;
+
+// Collaboration & taxonomy types
+import type {
+  noteDocuments,
+  noteRevisions,
+  noteCollaborators,
+  contentComments,
+  contentReactions,
+} from './collaboration';
+import type { tags, contentTags, userTagFollows } from './taxonomy';
+
+export type NoteDocument = InferSelectModel<typeof noteDocuments>;
+export type InsertNoteDocument = InferInsertModel<typeof noteDocuments>;
+
+export type NoteRevision = InferSelectModel<typeof noteRevisions>;
+export type InsertNoteRevision = InferInsertModel<typeof noteRevisions>;
+
+export type NoteCollaborator = InferSelectModel<typeof noteCollaborators>;
+export type InsertNoteCollaborator = InferInsertModel<typeof noteCollaborators>;
+
+export type ContentComment = InferSelectModel<typeof contentComments>;
+export type InsertContentComment = InferInsertModel<typeof contentComments>;
+
+export type ContentReaction = InferSelectModel<typeof contentReactions>;
+export type InsertContentReaction = InferInsertModel<typeof contentReactions>;
+
+export type Tag = InferSelectModel<typeof tags>;
+export type InsertTag = InferInsertModel<typeof tags>;
+
+export type ContentTag = InferSelectModel<typeof contentTags>;
+export type InsertContentTag = InferInsertModel<typeof contentTags>;
+
+export type UserTagFollow = InferSelectModel<typeof userTagFollows>;
+export type InsertUserTagFollow = InferInsertModel<typeof userTagFollows>;
+
+// Commerce types
+import type {
+  products,
+  productPrices,
+  productContentGrants,
+  orders,
+  orderItems,
+  payments,
+  refunds,
+  subscriptions,
+  entitlements,
+} from './commerce';
+
+export type Product = InferSelectModel<typeof products>;
+export type InsertProduct = InferInsertModel<typeof products>;
+
+export type ProductPrice = InferSelectModel<typeof productPrices>;
+export type InsertProductPrice = InferInsertModel<typeof productPrices>;
+
+export type ProductContentGrant = InferSelectModel<typeof productContentGrants>;
+export type InsertProductContentGrant = InferInsertModel<typeof productContentGrants>;
+
+export type Order = InferSelectModel<typeof orders>;
+export type InsertOrder = InferInsertModel<typeof orders>;
+
+export type OrderItem = InferSelectModel<typeof orderItems>;
+export type InsertOrderItem = InferInsertModel<typeof orderItems>;
+
+export type Payment = InferSelectModel<typeof payments>;
+export type InsertPayment = InferInsertModel<typeof payments>;
+
+export type Refund = InferSelectModel<typeof refunds>;
+export type InsertRefund = InferInsertModel<typeof refunds>;
+
+export type Subscription = InferSelectModel<typeof subscriptions>;
+export type InsertSubscription = InferInsertModel<typeof subscriptions>;
+
+export type Entitlement = InferSelectModel<typeof entitlements>;
+export type InsertEntitlement = InferInsertModel<typeof entitlements>;
 
 // Contribution system types
 import type { userProfiles } from './user-profiles';

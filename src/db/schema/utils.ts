@@ -14,3 +14,7 @@ export function timestampMs(name: string, update = false) {
       .$onUpdate(() => nowMs());
   return timestamp(name, { mode: 'date' }).notNull().default(nowMs());
 }
+
+export function nullableTimestampMs(name: string) {
+  return timestamp(name, { mode: 'date' });
+}

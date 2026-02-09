@@ -1,9 +1,9 @@
-import { pgTable, text, boolean, integer, index, uniqueIndex, real } from 'drizzle-orm/pg-core';
+import { pgTable, text, boolean, integer, index, uniqueIndex, real, char, jsonb } from 'drizzle-orm/pg-core';
 import { cuid2 } from 'drizzle-cuid2/postgres';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { difficultyLevelEnum, contentTypeEnum, contentStatusEnum } from './enums';
+import { accessLevelEnum, contentVisibilityEnum, difficultyLevelEnum, contentStatusEnum, contentTypeEnum } from './enums';
 import z from 'zod';
-import { timestampMs } from './utils';
+import { nullableTimestampMs, timestampMs } from './utils';
 
 // ==================== Grade Table ====================
 export const grades = pgTable(
@@ -47,8 +47,14 @@ export const books = pgTable(
     category: text('category'),
     difficultyLevel: difficultyLevelEnum('difficulty_level').notNull().default('BEGINNER'),
     status: contentStatusEnum('status').notNull().default('DRAFT'),
+    visibility: contentVisibilityEnum('visibility').notNull().default('PUBLIC'),
+    accessLevel: accessLevelEnum('access_level').notNull().default('FREE'),
     isActive: boolean('is_active').notNull().default(true),
     createdBy: text('created_by').notNull(),
+    updatedBy: text('updated_by'),
+    publishedAt: nullableTimestampMs('published_at'),
+    archivedAt: nullableTimestampMs('archived_at'),
+    deletedAt: nullableTimestampMs('deleted_at'),
     createdAt: timestampMs('created_at'),
     updatedAt: timestampMs('updated_at', true),
   },
@@ -58,6 +64,8 @@ export const books = pgTable(
     index('idx_book_category').on(table.category),
     index('idx_book_difficulty').on(table.difficultyLevel),
     index('idx_book_status').on(table.status),
+    index('idx_book_visibility').on(table.visibility),
+    index('idx_book_access_level').on(table.accessLevel),
     index('idx_book_created_by').on(table.createdBy),
   ],
 );
@@ -117,8 +125,13 @@ export const topics = pgTable(
       .references(() => books.id, { onDelete: 'cascade' }),
     orderIndex: integer('order_index').notNull().default(0),
     status: contentStatusEnum('status').notNull().default('DRAFT'),
+    visibility: contentVisibilityEnum('visibility').notNull().default('PUBLIC'),
     isActive: boolean('is_active').notNull().default(true),
     createdBy: text('created_by').notNull(),
+    updatedBy: text('updated_by'),
+    publishedAt: nullableTimestampMs('published_at'),
+    archivedAt: nullableTimestampMs('archived_at'),
+    deletedAt: nullableTimestampMs('deleted_at'),
     createdAt: timestampMs('created_at'),
     updatedAt: timestampMs('updated_at', true),
   },
@@ -128,6 +141,7 @@ export const topics = pgTable(
     index('idx_topic_slug').on(table.slug),
     index('idx_topic_book').on(table.bookId),
     index('idx_topic_status').on(table.status),
+    index('idx_topic_visibility').on(table.visibility),
     index('idx_topic_created_by').on(table.createdBy),
   ],
 );
@@ -153,8 +167,13 @@ export const subtopics = pgTable(
       .references(() => topics.id, { onDelete: 'cascade' }),
     orderIndex: integer('order_index').notNull().default(0),
     status: contentStatusEnum('status').notNull().default('DRAFT'),
+    visibility: contentVisibilityEnum('visibility').notNull().default('PUBLIC'),
     isActive: boolean('is_active').notNull().default(true),
     createdBy: text('created_by').notNull(),
+    updatedBy: text('updated_by'),
+    publishedAt: nullableTimestampMs('published_at'),
+    archivedAt: nullableTimestampMs('archived_at'),
+    deletedAt: nullableTimestampMs('deleted_at'),
     createdAt: timestampMs('created_at'),
     updatedAt: timestampMs('updated_at', true),
   },
@@ -164,6 +183,7 @@ export const subtopics = pgTable(
     index('idx_subtopic_slug').on(table.slug),
     index('idx_subtopic_topic').on(table.topicId),
     index('idx_subtopic_status').on(table.status),
+    index('idx_subtopic_visibility').on(table.visibility),
   ],
 );
 
@@ -183,6 +203,8 @@ export const notes = pgTable(
     slug: text('slug').notNull().unique(),
     title: text('title').notNull(),
     content: text('content').notNull(),
+    contentJson: jsonb('content_json').$type<Record<string, unknown>>(),
+    summary: text('summary'),
     contentType: contentTypeEnum('content_type').notNull().default('MARKDOWN'),
     topicId: text('topic_id')
       .notNull()
@@ -192,13 +214,19 @@ export const notes = pgTable(
     }),
     authorId: text('author_id').notNull(),
     status: contentStatusEnum('status').notNull().default('DRAFT'),
+    visibility: contentVisibilityEnum('visibility').notNull().default('PUBLIC'),
+    accessLevel: accessLevelEnum('access_level').notNull().default('FREE'),
     isPublic: boolean('is_public').notNull().default(true),
     isPremium: boolean('is_premium').notNull().default(false),
     price: real('price').notNull().default(0.0),
+    currency: char('currency', { length: 3 }).notNull().default('USD'),
+    priceCents: integer('price_cents').notNull().default(0),
     downloadsCount: integer('downloads_count').notNull().default(0),
     ratingAvg: real('rating_avg').notNull().default(0.0),
     ratingCount: integer('rating_count').notNull().default(0),
     fileUrl: text('file_url'),
+    publishedAt: nullableTimestampMs('published_at'),
+    deletedAt: nullableTimestampMs('deleted_at'),
     createdAt: timestampMs('created_at'),
     updatedAt: timestampMs('updated_at', true),
   },
@@ -208,6 +236,8 @@ export const notes = pgTable(
     index('idx_note_subtopic').on(table.subtopicId),
     index('idx_note_author').on(table.authorId),
     index('idx_note_status').on(table.status),
+    index('idx_note_visibility').on(table.visibility),
+    index('idx_note_access_level').on(table.accessLevel),
     index('idx_note_public_premium').on(table.isPublic, table.isPremium),
     index('idx_note_rating').on(table.ratingAvg),
     index('idx_note_downloads').on(table.downloadsCount),
@@ -219,7 +249,10 @@ export const insertNoteSchema = createInsertSchema(notes, {
   title: (s) => s.min(1).max(255),
   slug: (s) => s.min(1).max(255),
   content: (s) => s.min(1),
+  contentJson: () => z.record(z.string(), z.unknown()).optional(),
+  summary: (s) => s.max(2000).optional(),
   price: (s) => s.min(0),
-  fileUrl: () => z.url(),
+  priceCents: (s) => s.int().min(0),
+  fileUrl: () => z.string().url().optional(),
 }).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateNoteSchema = insertNoteSchema.partial();

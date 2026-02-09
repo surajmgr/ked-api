@@ -17,8 +17,14 @@ export async function fetchBookBySlug(client: DrizzleClient, slug: string, grade
       status: books.status,
       category: books.category,
       difficultyLevel: books.difficultyLevel,
+      visibility: books.visibility,
+      accessLevel: books.accessLevel,
       isActive: books.isActive,
       createdBy: books.createdBy,
+      updatedBy: books.updatedBy,
+      publishedAt: books.publishedAt,
+      archivedAt: books.archivedAt,
+      deletedAt: books.deletedAt,
       updatedAt: books.updatedAt,
       grades: sql`(
       SELECT COALESCE(json_agg(g), '[]'::json)
@@ -37,6 +43,8 @@ export async function fetchBookBySlug(client: DrizzleClient, slug: string, grade
     .leftJoin(grades, eq(gradeBooks.gradeId, grades.id))
     .where(eq(books.slug, slug))
     .limit(1);
+
+  if (!result) return null;
 
   return {
     ...result,

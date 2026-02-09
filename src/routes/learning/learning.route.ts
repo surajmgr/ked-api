@@ -1,18 +1,18 @@
 import { jsonContentRaw, jsonReqContentRequired } from '@/lib/openapi/helper';
 import { GLOBAL_RESPONSES, NOT_FOUND_RESPONSE, VALIDATION_ERROR_RESPONSE } from '@/lib/openapi/responses';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
-import { idParamsSchema } from '@/schema/req.schema';
+import { buildParams } from '@/schema/req.schema';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Learning'];
 
 // Update Progress
 export const updateProgress = createRoute({
-  path: '/progress/:noteId',
+  path: '/progress/{noteId}',
   method: 'post',
   tags,
   request: {
-    params: idParamsSchema,
+    params: buildParams({ noteId: z.cuid2() }),
     body: jsonReqContentRequired({
       description: 'Update learning progress',
       schema: z.object({
@@ -134,11 +134,11 @@ export type GetLearningHistory = typeof getLearningHistory;
 
 // Get Note Progress
 export const getNoteProgress = createRoute({
-  path: '/progress/:noteId',
+  path: '/progress/{noteId}',
   method: 'get',
   tags,
   request: {
-    params: idParamsSchema,
+    params: buildParams({ noteId: z.cuid2() }),
   },
   responses: {
     ...GLOBAL_RESPONSES,
