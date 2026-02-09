@@ -8,6 +8,7 @@ const qa = createRouter()
   .openapi(routes.vote, handlers.vote)
   .openapi(routes.acceptAnswer, handlers.acceptAnswer)
   .openapi(routes.listQuestions, handlers.listQuestions)
-  .openapi(routes.getQuestion, handlers.getQuestion);
+  .openapi(routes.getQuestion, handlers.getQuestion)
+  .openapi(routes.getQuestionBySlug, handlers.getQuestionBySlug);
 
 export default qa;

@@ -1,12 +1,20 @@
 import type { AppRouteHandler } from '@/lib/types/helper';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
-import { questions, answers, votes } from '@/db/schema';
+import { questions, answers, votes, topics, subtopics } from '@/db/schema';
 import { eq, and, sql, desc, inArray } from 'drizzle-orm';
 import type { SQL, AnyColumn } from 'drizzle-orm';
 import { getCurrentSession } from '@/lib/utils/auth';
 import { ApiError } from '@/lib/utils/error';
 import { generateUniqueQuestionSlug } from '@/lib/utils/slugify';
-import type { AskQuestion, AnswerQuestion, Vote, AcceptAnswer, ListQuestions, GetQuestion } from './qa.route';
+import type {
+  AskQuestion,
+  AnswerQuestion,
+  Vote,
+  AcceptAnswer,
+  ListQuestions,
+  GetQuestion,
+  GetQuestionBySlug,
+} from './qa.route';
 import { invalidateContributionCache } from '@/middleware/contribution';
 
 export const askQuestion: AppRouteHandler<AskQuestion> = async (c) => {
@@ -364,12 +372,35 @@ export const acceptAnswer: AppRouteHandler<AcceptAnswer> = async (c) => {
 
 export const listQuestions: AppRouteHandler<ListQuestions> = async (c) => {
   const client = await c.var.provider.db.getClient();
-  const { topicId, subtopicId, solved, sortBy, limit } = c.req.valid('query');
+  const { topicId, topicSlug, subtopicId, subtopicSlug, solved, sortBy, limit } = c.req.valid('query');
 
   // Build where conditions
   const conditions = [];
-  if (topicId) conditions.push(eq(questions.topicId, topicId));
-  if (subtopicId) conditions.push(eq(questions.subtopicId, subtopicId));
+  if (topicId) {
+    conditions.push(eq(questions.topicId, topicId));
+  } else if (topicSlug) {
+    const topic = await client.query.topics.findFirst({
+      where: eq(topics.slug, topicSlug),
+      columns: { id: true },
+    });
+    if (!topic) {
+      return c.json({ success: true, message: 'Questions retrieved successfully', data: [] }, HttpStatusCodes.OK);
+    }
+    conditions.push(eq(questions.topicId, topic.id));
+  }
+
+  if (subtopicId) {
+    conditions.push(eq(questions.subtopicId, subtopicId));
+  } else if (subtopicSlug) {
+    const subtopic = await client.query.subtopics.findFirst({
+      where: eq(subtopics.slug, subtopicSlug),
+      columns: { id: true },
+    });
+    if (!subtopic) {
+      return c.json({ success: true, message: 'Questions retrieved successfully', data: [] }, HttpStatusCodes.OK);
+    }
+    conditions.push(eq(questions.subtopicId, subtopic.id));
+  }
   if (solved !== undefined) conditions.push(eq(questions.isSolved, solved));
 
   // Build order by
@@ -457,6 +488,85 @@ export const getQuestion: AppRouteHandler<GetQuestion> = async (c) => {
       const aIds = questionAnswers.map((a) => a.id);
 
       // Optimization: Fetch all answer votes in one query using inArray
+      const aVotes = await client
+        .select()
+        .from(votes)
+        .where(and(eq(votes.userId, user.id), inArray(votes.answerId, aIds)));
+
+      for (const v of aVotes) {
+        if (v.answerId && v.voteType) {
+          answerUserVotes[v.answerId] = v.voteType as 'UPVOTE' | 'DOWNVOTE';
+        }
+      }
+    }
+  }
+
+  return c.json(
+    {
+      success: true,
+      data: {
+        question: {
+          ...question,
+          viewsCount: question.viewsCount + 1,
+          userVote: questionUserVote,
+          isAuthor: user ? question.authorId === user.id : false,
+        },
+        answers: questionAnswers.map((a) => ({
+          ...a,
+          userVote: answerUserVotes[a.id] || null,
+          isAuthor: user ? a.authorId === user.id : false,
+        })),
+      },
+    },
+    HttpStatusCodes.OK,
+  );
+};
+
+export const getQuestionBySlug: AppRouteHandler<GetQuestionBySlug> = async (c) => {
+  const client = await c.var.provider.db.getClient();
+  const { slug } = c.req.valid('param');
+
+  // Hybrid Auth
+  const session = await getCurrentSession(c, false);
+  const user = session?.user;
+
+  const question = await client.query.questions.findFirst({
+    where: eq(questions.slug, slug),
+  });
+
+  if (!question) {
+    throw new ApiError('Question not found', HttpStatusCodes.NOT_FOUND);
+  }
+
+  // Increment views count
+  await client
+    .update(questions)
+    .set({
+      viewsCount: sql`${questions.viewsCount} + 1`,
+    })
+    .where(eq(questions.id, question.id));
+
+  const questionAnswers = await client
+    .select()
+    .from(answers)
+    .where(eq(answers.questionId, question.id))
+    .orderBy(desc(answers.votesCount), desc(answers.createdAt));
+
+  let questionUserVote = null;
+  const answerUserVotes: Record<string, 'UPVOTE' | 'DOWNVOTE'> = {};
+
+  if (user) {
+    const [qVote] = await client
+      .select()
+      .from(votes)
+      .where(and(eq(votes.userId, user.id), eq(votes.questionId, question.id)));
+
+    if (qVote) {
+      questionUserVote = qVote.voteType as 'UPVOTE' | 'DOWNVOTE';
+    }
+
+    if (questionAnswers.length > 0) {
+      const aIds = questionAnswers.map((a) => a.id);
       const aVotes = await client
         .select()
         .from(votes)

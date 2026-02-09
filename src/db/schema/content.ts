@@ -1,7 +1,13 @@
 import { pgTable, text, boolean, integer, index, uniqueIndex, real, char, jsonb } from 'drizzle-orm/pg-core';
 import { cuid2 } from 'drizzle-cuid2/postgres';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { accessLevelEnum, contentVisibilityEnum, difficultyLevelEnum, contentStatusEnum, contentTypeEnum } from './enums';
+import {
+  accessLevelEnum,
+  contentVisibilityEnum,
+  difficultyLevelEnum,
+  contentStatusEnum,
+  contentTypeEnum,
+} from './enums';
 import z from 'zod';
 import { nullableTimestampMs, timestampMs } from './utils';
 

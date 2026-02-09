@@ -1,10 +1,21 @@
 import type { AppRouteHandler } from '@/lib/types/helper';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
-import { books, topics, subtopics, notes, grades, gradeBooks } from '@/db/schema';
-import { eq, and, count, sql, or, ilike } from 'drizzle-orm';
+import {
+  books,
+  entitlements,
+  gradeBooks,
+  grades,
+  noteCollaborators,
+  notePurchases,
+  notes,
+  subtopics,
+  topics,
+} from '@/db/schema';
+import { and, count, eq, gt, ilike, isNull, or, sql } from 'drizzle-orm';
 import { getCurrentSession } from '@/lib/utils/auth';
 import { ApiError } from '@/lib/utils/error';
 import { generateUniqueBookSlug, generateUniqueTopicSlug, generateUniqueSubtopicSlug } from '@/lib/utils/slugify';
+import type { DrizzleClient } from '@/db';
 import type {
   CreateBook,
   CreateTopic,
@@ -15,16 +26,23 @@ import type {
   ListBooks,
   ListTopics,
   ListSubtopics,
+  ListNotesByTopicSlug,
+  ListNotesBySubtopicSlug,
   CreateBulkTopics,
   CreateBulkSubtopics,
   CreateNote,
   GetNote,
+  GetNoteBySlug,
+  GetNotePreview,
   DeleteNote,
   GetSimilarContent,
 } from './content.route';
 import type { ModerationService } from '@/lib/services/moderation.service';
 import { invalidateContributionCache } from '@/middleware/contribution';
 import { getMinimalProfileById } from '@/lib/external/user';
+import { cacheJSON, getCachedJSON } from '@/lib/utils/cache';
+import { CACHE_DEFAULTS } from '@/lib/utils/defaults';
+import { withCursorPagination } from '@/lib/utils/pagination';
 
 // Helper to determine content status based on user trust
 async function determineContentStatus(
@@ -46,6 +64,82 @@ async function determineContentStatus(
   });
 
   return 'PENDING_REVIEW';
+}
+
+async function resolveBookId(client: DrizzleClient, input: { bookId?: string; bookSlug?: string }) {
+  if (input.bookId) return input.bookId;
+  if (input.bookSlug) {
+    const book = await client.query.books.findFirst({ where: eq(books.slug, input.bookSlug), columns: { id: true } });
+    if (!book) throw new ApiError('Book not found', HttpStatusCodes.NOT_FOUND);
+    return book.id;
+  }
+  throw new ApiError('bookId or bookSlug is required', HttpStatusCodes.UNPROCESSABLE_ENTITY);
+}
+
+async function resolveTopicId(client: DrizzleClient, input: { topicId?: string; topicSlug?: string }) {
+  if (input.topicId) return input.topicId;
+  if (input.topicSlug) {
+    const topic = await client.query.topics.findFirst({
+      where: eq(topics.slug, input.topicSlug),
+      columns: { id: true },
+    });
+    if (!topic) throw new ApiError('Topic not found', HttpStatusCodes.NOT_FOUND);
+    return topic.id;
+  }
+  throw new ApiError('topicId or topicSlug is required', HttpStatusCodes.UNPROCESSABLE_ENTITY);
+}
+
+async function resolveSubtopicId(client: DrizzleClient, input: { subtopicId?: string; subtopicSlug?: string }) {
+  if (input.subtopicId) return input.subtopicId;
+  if (input.subtopicSlug) {
+    const subtopic = await client.query.subtopics.findFirst({
+      where: eq(subtopics.slug, input.subtopicSlug),
+      columns: { id: true },
+    });
+    if (!subtopic) throw new ApiError('Subtopic not found', HttpStatusCodes.NOT_FOUND);
+    return subtopic.id;
+  }
+  return undefined;
+}
+
+function isAdminRole(role?: string | null) {
+  return role === 'admin' || role === 'superadmin';
+}
+
+async function canAccessPrivateNote(client: DrizzleClient, noteId: string, userId: string) {
+  const collaborator = await client.query.noteCollaborators.findFirst({
+    where: and(
+      eq(noteCollaborators.noteId, noteId),
+      eq(noteCollaborators.userId, userId),
+      isNull(noteCollaborators.removedAt),
+    ),
+    columns: { id: true },
+  });
+  return !!collaborator;
+}
+
+async function isNoteUnlocked(client: DrizzleClient, note: typeof notes.$inferSelect, userId?: string) {
+  if (!userId) return false;
+  if (note.authorId === userId) return true;
+
+  const now = new Date();
+  const entitlement = await client.query.entitlements.findFirst({
+    where: and(
+      eq(entitlements.userId, userId),
+      eq(entitlements.resourceType, 'NOTE'),
+      eq(entitlements.resourceId, note.id),
+      or(isNull(entitlements.expiresAt), gt(entitlements.expiresAt, now)),
+    ),
+    columns: { id: true },
+  });
+  if (entitlement) return true;
+
+  // Legacy note purchase support (v1)
+  const purchase = await client.query.notePurchases.findFirst({
+    where: and(eq(notePurchases.noteId, note.id), eq(notePurchases.buyerId, userId)),
+    columns: { id: true },
+  });
+  return !!purchase;
 }
 
 export const listBooks: AppRouteHandler<ListBooks> = async (c) => {
@@ -279,6 +373,170 @@ export const listSubtopics: AppRouteHandler<ListSubtopics> = async (c) => {
   );
 };
 
+export const listNotesByTopicSlug: AppRouteHandler<ListNotesByTopicSlug> = async (c) => {
+  const cachedJson = await getCachedJSON(c, CACHE_DEFAULTS.NOTES);
+  if (cachedJson) return c.json(cachedJson);
+
+  const client = await c.var.provider.db.getClient();
+  const { topicSlug } = c.req.valid('param');
+  const { limit, cursor, c_total, state } = c.req.valid('query');
+
+  const topic = await client.query.topics.findFirst({
+    where: eq(topics.slug, topicSlug),
+    columns: { id: true },
+  });
+
+  if (!topic) {
+    const responseJson = {
+      success: true,
+      message: 'Success',
+      data: {
+        result: [],
+        pagination: { next: { more: false }, prev: { more: false }, ...(c_total ? { totalItems: 0 } : {}) },
+      },
+    };
+    await cacheJSON(c, responseJson, CACHE_DEFAULTS.NOTES);
+    return c.json(responseJson, HttpStatusCodes.OK);
+  }
+
+  const baseWhere = and(
+    eq(notes.topicId, topic.id),
+    eq(notes.status, 'PUBLISHED'),
+    eq(notes.visibility, 'PUBLIC'),
+    eq(notes.isPublic, true),
+    isNull(notes.deletedAt),
+  );
+
+  const notesQuery = client
+    .select({
+      id: notes.id,
+      slug: notes.slug,
+      title: notes.title,
+      summary: notes.summary,
+      authorId: notes.authorId,
+      topicId: notes.topicId,
+      subtopicId: notes.subtopicId,
+      isPremium: notes.isPremium,
+      price: notes.price,
+      priceCents: notes.priceCents,
+      currency: notes.currency,
+      createdAt: notes.createdAt,
+      updatedAt: notes.updatedAt,
+    })
+    .from(notes)
+    .limit(limit);
+
+  const data = await withCursorPagination(
+    notesQuery.$dynamic(),
+    {
+      main: { column: notes.updatedAt, name: 'updatedAt' },
+      unique: { column: notes.id, name: 'id' },
+      direction: 'desc',
+    },
+    cursor,
+    limit,
+    state,
+    baseWhere,
+  );
+
+  const totalQuery = client.select({ count: count() }).from(notes).where(baseWhere);
+  const total = c_total ? await totalQuery.$dynamic() : null;
+
+  const responseJson = {
+    success: true,
+    message: 'Success',
+    data: {
+      ...data,
+      pagination: { ...data.pagination, ...(total && { totalItems: total[0].count }) },
+    },
+  };
+
+  await cacheJSON(c, responseJson, CACHE_DEFAULTS.NOTES);
+  return c.json(responseJson, HttpStatusCodes.OK);
+};
+
+export const listNotesBySubtopicSlug: AppRouteHandler<ListNotesBySubtopicSlug> = async (c) => {
+  const cachedJson = await getCachedJSON(c, CACHE_DEFAULTS.NOTES);
+  if (cachedJson) return c.json(cachedJson);
+
+  const client = await c.var.provider.db.getClient();
+  const { subtopicSlug } = c.req.valid('param');
+  const { limit, cursor, c_total, state } = c.req.valid('query');
+
+  const subtopic = await client.query.subtopics.findFirst({
+    where: eq(subtopics.slug, subtopicSlug),
+    columns: { id: true },
+  });
+
+  if (!subtopic) {
+    const responseJson = {
+      success: true,
+      message: 'Success',
+      data: {
+        result: [],
+        pagination: { next: { more: false }, prev: { more: false }, ...(c_total ? { totalItems: 0 } : {}) },
+      },
+    };
+    await cacheJSON(c, responseJson, CACHE_DEFAULTS.NOTES);
+    return c.json(responseJson, HttpStatusCodes.OK);
+  }
+
+  const baseWhere = and(
+    eq(notes.subtopicId, subtopic.id),
+    eq(notes.status, 'PUBLISHED'),
+    eq(notes.visibility, 'PUBLIC'),
+    eq(notes.isPublic, true),
+    isNull(notes.deletedAt),
+  );
+
+  const notesQuery = client
+    .select({
+      id: notes.id,
+      slug: notes.slug,
+      title: notes.title,
+      summary: notes.summary,
+      authorId: notes.authorId,
+      topicId: notes.topicId,
+      subtopicId: notes.subtopicId,
+      isPremium: notes.isPremium,
+      price: notes.price,
+      priceCents: notes.priceCents,
+      currency: notes.currency,
+      createdAt: notes.createdAt,
+      updatedAt: notes.updatedAt,
+    })
+    .from(notes)
+    .limit(limit);
+
+  const data = await withCursorPagination(
+    notesQuery.$dynamic(),
+    {
+      main: { column: notes.updatedAt, name: 'updatedAt' },
+      unique: { column: notes.id, name: 'id' },
+      direction: 'desc',
+    },
+    cursor,
+    limit,
+    state,
+    baseWhere,
+  );
+
+  const totalQuery = client.select({ count: count() }).from(notes).where(baseWhere);
+  const total = c_total ? await totalQuery.$dynamic() : null;
+
+  const responseJson = {
+    success: true,
+    message: 'Success',
+    data: {
+      ...data,
+      pagination: { ...data.pagination, ...(total && { totalItems: total[0].count }) },
+    },
+  };
+
+  await cacheJSON(c, responseJson, CACHE_DEFAULTS.NOTES);
+  return c.json(responseJson, HttpStatusCodes.OK);
+};
+
 export const createBook: AppRouteHandler<CreateBook> = async (c) => {
   const client = await c.var.provider.db.getClient();
   const body = c.req.valid('json');
@@ -422,20 +680,13 @@ export const createTopic: AppRouteHandler<CreateTopic> = async (c) => {
     throw new ApiError('Contribution system not available', HttpStatusCodes.INTERNAL_SERVER_ERROR);
   }
 
-  // Verify book exists
-  const book = await client.query.books.findFirst({
-    where: eq(books.id, body.bookId),
-  });
-
-  if (!book) {
-    throw new ApiError('Book not found', HttpStatusCodes.NOT_FOUND);
-  }
+  const bookId = await resolveBookId(client, { bookId: body.bookId, bookSlug: body.bookSlug });
 
   // Create topic
   const [topic] = await client
     .insert(topics)
     .values({
-      bookId: body.bookId,
+      bookId,
       title: body.title,
       slug: await generateUniqueTopicSlug(client, body.slug),
       description: body.description,
@@ -568,9 +819,11 @@ export const createSubtopic: AppRouteHandler<CreateSubtopic> = async (c) => {
     throw new ApiError('Contribution system not available', HttpStatusCodes.INTERNAL_SERVER_ERROR);
   }
 
+  const topicId = await resolveTopicId(client, { topicId: body.topicId, topicSlug: body.topicSlug });
+
   // Verify topic exists
   const topic = await client.query.topics.findFirst({
-    where: eq(topics.id, body.topicId),
+    where: eq(topics.id, topicId),
   });
 
   if (!topic) {
@@ -581,7 +834,7 @@ export const createSubtopic: AppRouteHandler<CreateSubtopic> = async (c) => {
   const [subtopic] = await client
     .insert(subtopics)
     .values({
-      topicId: body.topicId,
+      topicId,
       title: body.title,
       slug: await generateUniqueSubtopicSlug(client, body.slug),
       description: body.description,
@@ -1085,13 +1338,23 @@ export const createBulkTopics: AppRouteHandler<CreateBulkTopics> = async (c) => 
   const body = c.req.valid('json');
   const { user } = await getCurrentSession(c, true);
 
-  const createdTopics = [];
+  const contribution = c.var.contribution;
+  const moderationService = c.var.moderationService;
+
+  if (!moderationService) {
+    throw new ApiError('Moderation system not available', HttpStatusCodes.INTERNAL_SERVER_ERROR);
+  }
+
+  const bookId = await resolveBookId(client, { bookId: body.bookId, bookSlug: body.bookSlug });
+  const isTrusted = contribution?.isTrusted ?? false;
+
+  const createdTopics: { id: string; slug: string; title: string; status: string }[] = [];
 
   for (const topicData of body.topics) {
     const [topic] = await client
       .insert(topics)
       .values({
-        bookId: body.bookId,
+        bookId,
         title: topicData.title,
         slug: await generateUniqueTopicSlug(client, topicData.slug),
         description: topicData.description,
@@ -1101,30 +1364,17 @@ export const createBulkTopics: AppRouteHandler<CreateBulkTopics> = async (c) => 
       })
       .returning();
 
-    createdTopics.push(topic);
-  }
+    const status = await determineContentStatus(isTrusted, moderationService, topic.id, 'topic', user.id);
+    await client.update(topics).set({ status }).where(eq(topics.id, topic.id));
 
-  const contribution = c.var.contribution;
-  const isTrusted = contribution?.isTrusted ?? false;
-  const status = isTrusted ? 'PUBLISHED' : 'PENDING_REVIEW';
-
-  if (createdTopics.length > 0) {
-    await client
-      .update(topics)
-      .set({ status })
-      .where(and(eq(topics.bookId, body.bookId), sql`${topics.id} IN ${createdTopics.map((t) => t.id)}`));
+    createdTopics.push({ id: topic.id, slug: topic.slug, title: topic.title, status });
   }
 
   return c.json(
     {
       success: true,
       message: 'Topics created successfully',
-      data: createdTopics.map((t) => ({
-        id: t.id,
-        slug: t.slug,
-        title: t.title,
-        status,
-      })),
+      data: createdTopics,
     },
     HttpStatusCodes.CREATED,
   );
@@ -1135,13 +1385,23 @@ export const createBulkSubtopics: AppRouteHandler<CreateBulkSubtopics> = async (
   const body = c.req.valid('json');
   const { user } = await getCurrentSession(c, true);
 
-  const createdSubtopics = [];
+  const contribution = c.var.contribution;
+  const moderationService = c.var.moderationService;
+
+  if (!moderationService) {
+    throw new ApiError('Moderation system not available', HttpStatusCodes.INTERNAL_SERVER_ERROR);
+  }
+
+  const topicId = await resolveTopicId(client, { topicId: body.topicId, topicSlug: body.topicSlug });
+  const isTrusted = contribution?.isTrusted ?? false;
+
+  const createdSubtopics: { id: string; slug: string; title: string; status: string }[] = [];
 
   for (const subtopicData of body.subtopics) {
     const [subtopic] = await client
       .insert(subtopics)
       .values({
-        topicId: body.topicId,
+        topicId,
         title: subtopicData.title,
         slug: await generateUniqueSubtopicSlug(client, subtopicData.slug),
         description: subtopicData.description,
@@ -1151,30 +1411,17 @@ export const createBulkSubtopics: AppRouteHandler<CreateBulkSubtopics> = async (
       })
       .returning();
 
-    createdSubtopics.push(subtopic);
-  }
+    const status = await determineContentStatus(isTrusted, moderationService, subtopic.id, 'subtopic', user.id);
+    await client.update(subtopics).set({ status }).where(eq(subtopics.id, subtopic.id));
 
-  const contribution = c.var.contribution;
-  const isTrusted = contribution?.isTrusted ?? false;
-  const status = isTrusted ? 'PUBLISHED' : 'PENDING_REVIEW';
-
-  if (createdSubtopics.length > 0) {
-    await client
-      .update(subtopics)
-      .set({ status })
-      .where(and(eq(subtopics.topicId, body.topicId), sql`${subtopics.id} IN ${createdSubtopics.map((t) => t.id)}`));
+    createdSubtopics.push({ id: subtopic.id, slug: subtopic.slug, title: subtopic.title, status });
   }
 
   return c.json(
     {
       success: true,
       message: 'Subtopics created successfully',
-      data: createdSubtopics.map((t) => ({
-        id: t.id,
-        slug: t.slug,
-        title: t.title,
-        status,
-      })),
+      data: createdSubtopics,
     },
     HttpStatusCodes.CREATED,
   );
@@ -1185,6 +1432,22 @@ export const createNote: AppRouteHandler<CreateNote> = async (c) => {
   const body = c.req.valid('json');
   const { user } = await getCurrentSession(c, true);
 
+  const topicId = await resolveTopicId(client, { topicId: body.topicId, topicSlug: body.topicSlug });
+  const subtopicId = await resolveSubtopicId(client, { subtopicId: body.subtopicId, subtopicSlug: body.subtopicSlug });
+
+  if (subtopicId) {
+    const belongs = await client.query.subtopics.findFirst({
+      where: and(eq(subtopics.id, subtopicId), eq(subtopics.topicId, topicId)),
+      columns: { id: true },
+    });
+    if (!belongs) {
+      throw new ApiError('Subtopic does not belong to the provided topic', HttpStatusCodes.UNPROCESSABLE_ENTITY);
+    }
+  }
+
+  const visibility = body.isPublic ? 'PUBLIC' : 'PRIVATE';
+  const accessLevel = body.isPremium ? 'PREMIUM' : body.price > 0 ? 'PAID' : 'FREE';
+
   const [note] = await client
     .insert(notes)
     .values({
@@ -1192,12 +1455,15 @@ export const createNote: AppRouteHandler<CreateNote> = async (c) => {
       slug: body.slug,
       content: body.content,
       contentType: body.contentType,
-      topicId: body.topicId,
-      subtopicId: body.subtopicId,
+      topicId,
+      subtopicId,
       authorId: user.id,
       isPublic: body.isPublic,
       isPremium: body.isPremium,
       price: body.price,
+      priceCents: Math.round((body.price ?? 0) * 100),
+      visibility,
+      accessLevel,
       status: 'DRAFT',
     })
     .returning();
@@ -1289,26 +1555,36 @@ export const getNote: AppRouteHandler<GetNote> = async (c) => {
     throw new ApiError('Note not found', HttpStatusCodes.NOT_FOUND);
   }
 
-  if (!note.isPublic) {
-    if (!user || note.authorId !== user.id) {
-      throw new ApiError('Unauthorized', HttpStatusCodes.UNAUTHORIZED);
+  if (note.deletedAt) {
+    throw new ApiError('Note not found', HttpStatusCodes.NOT_FOUND);
+  }
+
+  const isAdmin = isAdminRole(user?.role ?? null);
+  const isAuthor = !!user && note.authorId === user.id;
+
+  // Draft/reviewed content is only visible to author/admin
+  if (note.status !== 'PUBLISHED' && !isAuthor && !isAdmin) {
+    throw new ApiError('Note not found', HttpStatusCodes.NOT_FOUND);
+  }
+
+  // Visibility rules (new schema)
+  if (note.visibility === 'PRIVATE') {
+    if (!user) throw new ApiError('Unauthorized', HttpStatusCodes.UNAUTHORIZED);
+    if (!isAuthor && !isAdmin) {
+      const canCollab = await canAccessPrivateNote(client, note.id, user.id);
+      if (!canCollab) throw new ApiError('Forbidden', HttpStatusCodes.FORBIDDEN);
     }
   }
 
-  let content = note.content;
-  let isUnlocked = false;
-
-  if (note.isPremium) {
-    if (user && note.authorId === user.id) {
-      isUnlocked = true;
-    } else {
-      if (!isUnlocked) {
-        content = `${content.slice(0, 200)}... (Premium Content)`;
-      }
-    }
-  } else {
-    isUnlocked = true;
+  // Backwards-compatible visibility
+  if (!note.isPublic && !isAuthor && !isAdmin) {
+    throw new ApiError('Forbidden', HttpStatusCodes.FORBIDDEN);
   }
+
+  const baseUnlocked =
+    note.accessLevel === 'FREE' && !note.isPremium && (note.priceCents ?? 0) === 0 && (note.price ?? 0) === 0;
+  const isUnlocked = baseUnlocked || isAuthor || isAdmin || (await isNoteUnlocked(client, note, user?.id));
+  const content = isUnlocked ? note.content : `${note.content.slice(0, 200)}... (Locked Content)`;
 
   const author = await getMinimalProfileById(note.authorId, c.env.AUTH_API_URL);
 
@@ -1326,6 +1602,105 @@ export const getNote: AppRouteHandler<GetNote> = async (c) => {
     },
     HttpStatusCodes.OK,
   );
+};
+
+export const getNoteBySlug: AppRouteHandler<GetNoteBySlug> = async (c) => {
+  const client = await c.var.provider.db.getClient();
+  const { slug } = c.req.valid('param');
+  const session = c.var.auth;
+  const user = session?.user;
+
+  const note = await client.query.notes.findFirst({
+    where: eq(notes.slug, slug),
+  });
+
+  if (!note || note.deletedAt) {
+    throw new ApiError('Note not found', HttpStatusCodes.NOT_FOUND);
+  }
+
+  const isAdmin = isAdminRole(user?.role ?? null);
+  const isAuthor = !!user && note.authorId === user.id;
+
+  if (note.status !== 'PUBLISHED' && !isAuthor && !isAdmin) {
+    throw new ApiError('Note not found', HttpStatusCodes.NOT_FOUND);
+  }
+
+  if (note.visibility === 'PRIVATE') {
+    if (!user) throw new ApiError('Unauthorized', HttpStatusCodes.UNAUTHORIZED);
+    if (!isAuthor && !isAdmin) {
+      const canCollab = await canAccessPrivateNote(client, note.id, user.id);
+      if (!canCollab) throw new ApiError('Forbidden', HttpStatusCodes.FORBIDDEN);
+    }
+  }
+
+  if (!note.isPublic && !isAuthor && !isAdmin) {
+    throw new ApiError('Forbidden', HttpStatusCodes.FORBIDDEN);
+  }
+
+  const baseUnlocked =
+    note.accessLevel === 'FREE' && !note.isPremium && (note.priceCents ?? 0) === 0 && (note.price ?? 0) === 0;
+  const isUnlocked = baseUnlocked || isAuthor || isAdmin || (await isNoteUnlocked(client, note, user?.id));
+  const content = isUnlocked ? note.content : `${note.content.slice(0, 200)}... (Locked Content)`;
+
+  const author = await getMinimalProfileById(note.authorId, c.env.AUTH_API_URL);
+
+  return c.json(
+    {
+      success: true,
+      data: {
+        ...note,
+        content,
+        contentType: note.contentType,
+        author,
+        isUnlocked,
+        isLiked: false,
+      },
+    },
+    HttpStatusCodes.OK,
+  );
+};
+
+export const getNotePreview: AppRouteHandler<GetNotePreview> = async (c) => {
+  const cachedJson = await getCachedJSON(c, CACHE_DEFAULTS.NOTES);
+  if (cachedJson) return c.json(cachedJson);
+
+  const client = await c.var.provider.db.getClient();
+  const { slug } = c.req.valid('param');
+
+  const note = await client.query.notes.findFirst({
+    where: eq(notes.slug, slug),
+  });
+
+  // Cacheable public preview only
+  if (!note || note.deletedAt || note.status !== 'PUBLISHED' || note.visibility === 'PRIVATE' || !note.isPublic) {
+    const responseJson = { success: true, data: null };
+    await cacheJSON(c, responseJson, CACHE_DEFAULTS.NOTES);
+    return c.json(responseJson, HttpStatusCodes.OK);
+  }
+
+  const responseJson = {
+    success: true,
+    data: {
+      id: note.id,
+      title: note.title,
+      slug: note.slug,
+      preview: `${note.content.slice(0, 200)}...`,
+      contentType: note.contentType,
+      authorId: note.authorId,
+      topicId: note.topicId,
+      subtopicId: note.subtopicId,
+      isPublic: note.isPublic,
+      isPremium: note.isPremium,
+      price: note.price,
+      priceCents: note.priceCents,
+      currency: note.currency,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+    },
+  };
+
+  await cacheJSON(c, responseJson, CACHE_DEFAULTS.NOTES);
+  return c.json(responseJson, HttpStatusCodes.OK);
 };
 
 export const deleteNote: AppRouteHandler<DeleteNote> = async (c) => {

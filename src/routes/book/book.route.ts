@@ -70,6 +70,29 @@ export const create = createRoute({
 });
 export type Create = typeof create;
 
+export const bulkCreate = createRoute({
+  path: '/bulk',
+  method: 'post',
+  tags,
+  request: {
+    body: jsonReqContentRequired({
+      description: 'Bulk insert books (UX import)',
+      schema: z.object({
+        books: z.array(insertBookSchema).min(1).max(200),
+      }),
+    }),
+  },
+  responses: {
+    ...GLOBAL_RESPONSES,
+    ...VALIDATION_ERROR_RESPONSE,
+    [HttpStatusCodes.OK]: jsonContent({
+      description: 'Bulk create books',
+      schema: z.array(selectBookSchemaWithGradeBook),
+    }),
+  },
+});
+export type BulkCreate = typeof bulkCreate;
+
 export const update = createRoute({
   path: '/{id}',
   method: 'put',

@@ -7,7 +7,7 @@ import {
 } from '@/lib/openapi/helper';
 import { GLOBAL_RESPONSES, VALIDATION_ERROR_RESPONSE } from '@/lib/openapi/responses';
 import { HttpStatusCodes } from '@/lib/utils/status.codes';
-import { idParamsSchema } from '@/schema/req.schema';
+import { buildParams, cursorPaginationQuerySchema, idParamsSchema } from '@/schema/req.schema';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Content Creation'];
@@ -134,6 +134,80 @@ export const listSubtopics = createRoute({
 });
 export type ListSubtopics = typeof listSubtopics;
 
+// List Notes (by topic slug)
+export const listNotesByTopicSlug = createRoute({
+  path: '/public/topics/{topicSlug}/notes',
+  method: 'get',
+  tags: ['Notes'],
+  request: {
+    query: cursorPaginationQuerySchema,
+    params: buildParams({
+      topicSlug: z.string().min(1),
+    }),
+  },
+  responses: {
+    ...GLOBAL_RESPONSES,
+    [HttpStatusCodes.OK]: jsonContentWithPagination({
+      description: 'List published notes under a topic (slug-first UX)',
+      schema: z.array(
+        z.object({
+          id: z.string(),
+          slug: z.string(),
+          title: z.string(),
+          summary: z.string().nullable(),
+          authorId: z.string(),
+          topicId: z.string(),
+          subtopicId: z.string().nullable(),
+          isPremium: z.boolean(),
+          price: z.number(),
+          priceCents: z.number(),
+          currency: z.string(),
+          createdAt: z.union([z.string(), z.date()]).nullable(),
+          updatedAt: z.union([z.string(), z.date()]).nullable(),
+        }),
+      ),
+    }),
+  },
+});
+export type ListNotesByTopicSlug = typeof listNotesByTopicSlug;
+
+// List Notes (by subtopic slug)
+export const listNotesBySubtopicSlug = createRoute({
+  path: '/public/subtopics/{subtopicSlug}/notes',
+  method: 'get',
+  tags: ['Notes'],
+  request: {
+    query: cursorPaginationQuerySchema,
+    params: buildParams({
+      subtopicSlug: z.string().min(1),
+    }),
+  },
+  responses: {
+    ...GLOBAL_RESPONSES,
+    [HttpStatusCodes.OK]: jsonContentWithPagination({
+      description: 'List published notes under a subtopic (slug-first UX)',
+      schema: z.array(
+        z.object({
+          id: z.string(),
+          slug: z.string(),
+          title: z.string(),
+          summary: z.string().nullable(),
+          authorId: z.string(),
+          topicId: z.string(),
+          subtopicId: z.string().nullable(),
+          isPremium: z.boolean(),
+          price: z.number(),
+          priceCents: z.number(),
+          currency: z.string(),
+          createdAt: z.union([z.string(), z.date()]).nullable(),
+          updatedAt: z.union([z.string(), z.date()]).nullable(),
+        }),
+      ),
+    }),
+  },
+});
+export type ListNotesBySubtopicSlug = typeof listNotesBySubtopicSlug;
+
 // Create Book
 export const createBook = createRoute({
   path: '/books',
@@ -164,7 +238,8 @@ export const createTopic = createRoute({
     body: jsonReqContentRequired({
       description: 'Create a new topic',
       schema: z.object({
-        bookId: z.cuid(),
+        bookId: z.cuid().optional(),
+        bookSlug: z.string().min(1).optional(),
         title: z.string().min(1).max(255),
         slug: z.string().min(1).max(255),
         description: z.string().max(2000).optional(),
@@ -192,7 +267,8 @@ export const createSubtopic = createRoute({
     body: jsonReqContentRequired({
       description: 'Create a new subtopic',
       schema: z.object({
-        topicId: z.cuid(),
+        topicId: z.cuid().optional(),
+        topicSlug: z.string().min(1).optional(),
         title: z.string().min(1).max(255),
         slug: z.string().min(1).max(255),
         description: z.string().max(2000).optional(),
@@ -220,7 +296,8 @@ export const createBulkTopics = createRoute({
     body: jsonReqContentRequired({
       description: 'Create multiple topics',
       schema: z.object({
-        bookId: z.string(),
+        bookId: z.string().optional(),
+        bookSlug: z.string().min(1).optional(),
         topics: z.array(
           z.object({
             title: z.string().min(1).max(255),
@@ -263,7 +340,8 @@ export const createBulkSubtopics = createRoute({
     body: jsonReqContentRequired({
       description: 'Create multiple subtopics',
       schema: z.object({
-        topicId: z.string(),
+        topicId: z.string().optional(),
+        topicSlug: z.string().min(1).optional(),
         subtopics: z.array(
           z.object({
             title: z.string().min(1).max(255),
@@ -310,8 +388,10 @@ export const createNote = createRoute({
         slug: z.string().min(1).max(255),
         content: z.string().min(1),
         contentType: z.enum(['MARKDOWN', 'HTML', 'TEXT']).default('MARKDOWN'),
-        topicId: z.string(),
+        topicId: z.string().optional(),
+        topicSlug: z.string().min(1).optional(),
         subtopicId: z.string().optional(),
+        subtopicSlug: z.string().min(1).optional(),
         isPublic: z.boolean().default(true),
         isPremium: z.boolean().default(false),
         price: z.number().default(0),
@@ -366,6 +446,87 @@ export const getNote = createRoute({
   },
 });
 export type GetNote = typeof getNote;
+
+// Get Note by Slug (Hybrid)
+export const getNoteBySlug = createRoute({
+  path: '/hybrid/notes/slug/{slug}',
+  method: 'get',
+  tags: ['Notes'],
+  request: {
+    params: buildParams({
+      slug: z.string().min(1),
+    }),
+  },
+  responses: {
+    ...GLOBAL_RESPONSES,
+    [HttpStatusCodes.OK]: jsonContentRaw({
+      description: 'Note details (slug-first)',
+      schema: z.object({
+        success: z.boolean(),
+        data: z.object({
+          id: z.string(),
+          title: z.string(),
+          slug: z.string(),
+          content: z.string(),
+          contentType: z.string(),
+          author: z.object({
+            id: z.string(),
+            name: z.string().nullable(),
+          }),
+          isPublic: z.boolean(),
+          isPremium: z.boolean(),
+          price: z.number(),
+          createdAt: z.union([z.string(), z.date()]).nullable(),
+          isUnlocked: z.boolean(),
+          isLiked: z.boolean(),
+        }),
+      }),
+    }),
+  },
+});
+export type GetNoteBySlug = typeof getNoteBySlug;
+
+// Get Note Preview by Slug (Public, cacheable)
+export const getNotePreview = createRoute({
+  path: '/public/notes/{slug}',
+  method: 'get',
+  tags: ['Notes'],
+  request: {
+    params: buildParams({
+      slug: z.string().min(1),
+    }),
+  },
+  responses: {
+    ...GLOBAL_RESPONSES,
+    ...VALIDATION_ERROR_RESPONSE,
+    [HttpStatusCodes.OK]: jsonContentRaw({
+      description: 'Public note preview (slug-first, no user-specific fields)',
+      schema: z.object({
+        success: z.boolean(),
+        data: z
+          .object({
+            id: z.string(),
+            title: z.string(),
+            slug: z.string(),
+            preview: z.string(),
+            contentType: z.string(),
+            authorId: z.string(),
+            topicId: z.string(),
+            subtopicId: z.string().nullable(),
+            isPublic: z.boolean(),
+            isPremium: z.boolean(),
+            price: z.number(),
+            priceCents: z.number(),
+            currency: z.string(),
+            createdAt: z.union([z.string(), z.date()]).nullable(),
+            updatedAt: z.union([z.string(), z.date()]).nullable(),
+          })
+          .nullable(),
+      }),
+    }),
+  },
+});
+export type GetNotePreview = typeof getNotePreview;
 
 // Delete Note
 export const deleteNote = createRoute({

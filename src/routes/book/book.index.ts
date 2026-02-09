@@ -6,6 +6,7 @@ const books = createRouter()
   .openapi(routes.list, handlers.list)
   .openapi(routes.get, handlers.get)
   .openapi(routes.create, handlers.create)
+  .openapi(routes.bulkCreate, handlers.bulkCreate)
   .openapi(routes.update, handlers.update)
   .openapi(routes.active, handlers.active);
 

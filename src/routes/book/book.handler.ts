@@ -3,7 +3,7 @@ import { HttpStatusPhrases } from '@/lib/utils/status.phrases';
 import type { AppRouteHandler } from '@/lib/types/helper';
 import { books } from '@/db/schema';
 import { eq, count, sql, desc } from 'drizzle-orm';
-import type { Active, Create, Get, List, Update } from './book.route';
+import type { Active, BulkCreate, Create, Get, List, Update } from './book.route';
 import { attachOrUpdateGrade, fetchBookBySlug } from './book.helpers';
 import { generateUniqueBookSlug } from '@/lib/utils/slugify';
 import { getCurrentSession } from '@/lib/utils/auth';
@@ -171,6 +171,43 @@ export const create: AppRouteHandler<Create> = async (c) => {
 
   return c.json(
     { success: true, message: 'Book created successfully', data: { ...book, ...grade } },
+    HttpStatusCodes.OK,
+  );
+};
+
+export const bulkCreate: AppRouteHandler<BulkCreate> = async (c) => {
+  const client = await c.var.provider.db.getClient();
+  const { user } = await getCurrentSession(c, true);
+  const { books: payload } = c.req.valid('json');
+
+  const created = [];
+
+  for (const bookInput of payload) {
+    const [book] = await client
+      .insert(books)
+      .values({
+        title: bookInput.title,
+        slug: await generateUniqueBookSlug(client, bookInput.title),
+        isActive: bookInput.isActive ?? true,
+        description: bookInput.description,
+        author: bookInput.author,
+        coverImage: bookInput.coverImage,
+        category: bookInput.category,
+        difficultyLevel: bookInput.difficultyLevel,
+        createdBy: user.id,
+      })
+      .returning();
+
+    const grade = await attachOrUpdateGrade(client, book.id, bookInput.gradeId);
+    created.push({ ...book, ...grade });
+  }
+
+  return c.json(
+    {
+      success: true,
+      message: 'Books created successfully',
+      data: created,
+    },
     HttpStatusCodes.OK,
   );
 };

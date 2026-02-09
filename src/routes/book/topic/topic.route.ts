@@ -28,6 +28,27 @@ export const list = createRoute({
 });
 export type List = typeof list;
 
+export const listByBookSlug = createRoute({
+  path: '/public/book/{bookSlug}/list',
+  method: 'get',
+  tags,
+  request: {
+    query: cursorPaginationQuerySchema,
+    params: buildParams({
+      bookSlug: z.string().min(1),
+    }),
+  },
+  responses: {
+    ...GLOBAL_RESPONSES,
+    ...NOT_FOUND_RESPONSE,
+    [HttpStatusCodes.OK]: jsonContentWithPagination({
+      description: 'Get list of topics by bookSlug (slug-first UX)',
+      schema: selectBookTopicsSchema,
+    }),
+  },
+});
+export type ListByBookSlug = typeof listByBookSlug;
+
 export const listSubtopics = createRoute({
   path: '/public/{id}/subtopics',
   method: 'get',
@@ -45,6 +66,27 @@ export const listSubtopics = createRoute({
   },
 });
 export type ListSubtopics = typeof listSubtopics;
+
+export const listSubtopicsBySlug = createRoute({
+  path: '/public/{slug}/subtopics',
+  method: 'get',
+  tags,
+  request: {
+    query: cursorPaginationQuerySchema,
+    params: buildParams({
+      slug: z.string().min(1),
+    }),
+  },
+  responses: {
+    ...GLOBAL_RESPONSES,
+    ...NOT_FOUND_RESPONSE,
+    [HttpStatusCodes.OK]: jsonContentWithPagination({
+      description: 'Get list of subtopics by topicSlug (slug-first UX)',
+      schema: selectTopicSubtopicsSchema,
+    }),
+  },
+});
+export type ListSubtopicsBySlug = typeof listSubtopicsBySlug;
 
 export const getFeaturedNote = createRoute({
   path: '/public/{topicId}/featured-note',
@@ -83,3 +125,39 @@ export const get = createRoute({
   },
 });
 export type Get = typeof get;
+
+export const getSubtopicBySlug = createRoute({
+  path: '/public/subtopic/{slug}',
+  method: 'get',
+  tags,
+  request: {
+    params: buildParams({
+      slug: z.string().min(1),
+    }),
+  },
+  responses: {
+    ...GLOBAL_RESPONSES,
+    ...NOT_FOUND_RESPONSE,
+    [HttpStatusCodes.OK]: jsonContent({
+      description: 'Get subtopic by slug (slug-first UX)',
+      schema: z.object({
+        id: z.string(),
+        slug: z.string(),
+        title: z.string(),
+        description: z.string().nullable(),
+        orderIndex: z.number(),
+        topic: z.object({
+          id: z.string(),
+          slug: z.string(),
+          title: z.string(),
+          book: z.object({
+            id: z.string(),
+            slug: z.string(),
+            title: z.string(),
+          }),
+        }),
+      }),
+    }),
+  },
+});
+export type GetSubtopicBySlug = typeof getSubtopicBySlug;

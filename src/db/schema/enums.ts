@@ -97,13 +97,7 @@ export const reviewStatusEnum = pgEnum('review_status', ['PENDING', 'APPROVED', 
 // Commerce/billing enums
 export const productTypeEnum = pgEnum('product_type', ['ONE_TIME', 'SUBSCRIPTION']);
 export const billingIntervalEnum = pgEnum('billing_interval', ['DAY', 'WEEK', 'MONTH', 'YEAR']);
-export const orderStatusEnum = pgEnum('order_status', [
-  'DRAFT',
-  'PENDING_PAYMENT',
-  'PAID',
-  'CANCELED',
-  'REFUNDED',
-]);
+export const orderStatusEnum = pgEnum('order_status', ['DRAFT', 'PENDING_PAYMENT', 'PAID', 'CANCELED', 'REFUNDED']);
 export const paymentProviderEnum = pgEnum('payment_provider', ['STRIPE', 'RAZORPAY', 'PAYPAL', 'MANUAL']);
 export const paymentStatusEnum = pgEnum('payment_status', [
   'REQUIRES_PAYMENT_METHOD',

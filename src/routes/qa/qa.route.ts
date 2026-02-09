@@ -171,7 +171,9 @@ export const listQuestions = createRoute({
   request: {
     query: z.object({
       topicId: z.cuid().optional(),
+      topicSlug: z.string().min(1).optional(),
       subtopicId: z.cuid().optional(),
+      subtopicSlug: z.string().min(1).optional(),
       solved: z.coerce.boolean().optional(),
       sortBy: z.enum(['recent', 'votes', 'views', 'unanswered']).default('recent'),
       limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -265,3 +267,58 @@ export const getQuestion = createRoute({
   },
 });
 export type GetQuestion = typeof getQuestion;
+
+export const getQuestionBySlug = createRoute({
+  path: '/hybrid/questions/slug/{slug}',
+  method: 'get',
+  tags,
+  request: {
+    params: buildParams({
+      slug: z.string().min(1),
+    }),
+  },
+  responses: {
+    ...GLOBAL_RESPONSES,
+    ...NOT_FOUND_RESPONSE,
+    [HttpStatusCodes.OK]: jsonContentRaw({
+      description: 'Question details with answers (slug-first)',
+      schema: z.object({
+        success: z.boolean(),
+        data: z.object({
+          question: z.object({
+            id: z.string(),
+            slug: z.string(),
+            title: z.string(),
+            content: z.string(),
+            topicId: z.string(),
+            subtopicId: z.string().nullable(),
+            authorId: z.string(),
+            isSolved: z.boolean(),
+            viewsCount: z.number(),
+            votesCount: z.number(),
+            answersCount: z.number(),
+            tags: z.array(z.string()).nullable(),
+            createdAt: z.date(),
+            updatedAt: z.date(),
+            userVote: z.enum(['UPVOTE', 'DOWNVOTE']).nullable().optional(),
+            isAuthor: z.boolean().optional(),
+          }),
+          answers: z.array(
+            z.object({
+              id: z.string(),
+              questionId: z.string(),
+              content: z.string(),
+              authorId: z.string(),
+              votesCount: z.number(),
+              isAccepted: z.boolean(),
+              createdAt: z.date().nullable(),
+              userVote: z.enum(['UPVOTE', 'DOWNVOTE']).nullable().optional(),
+              isAuthor: z.boolean().optional(),
+            }),
+          ),
+        }),
+      }),
+    }),
+  },
+});
+export type GetQuestionBySlug = typeof getQuestionBySlug;

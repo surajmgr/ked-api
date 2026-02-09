@@ -72,4 +72,5 @@ export const getFeaturedNoteByTopicSchema = selectNoteSchema
         username: z.string().optional(),
       })
       .nullable(),
-  }).nullable();
+  })
+  .nullable();

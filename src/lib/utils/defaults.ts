@@ -23,6 +23,14 @@ export const CACHE_DEFAULTS: Record<string, CacheOptions> = {
       staleWhileRevalidate: 60,
     },
   },
+  // Backwards-compatible key used by some handlers
+  TOPIC_LIST: {
+    ttl: 6 * 60 * 60,
+    cacheControlOptions: {
+      maxAge: 6 * 60 * 60,
+      staleWhileRevalidate: 60,
+    },
+  },
   NOTES: {
     ttl: 24 * 60 * 60,
     cacheControlOptions: {
