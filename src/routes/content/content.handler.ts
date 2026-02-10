@@ -559,6 +559,7 @@ export const createBook: AppRouteHandler<CreateBook> = async (c) => {
       slug: await generateUniqueBookSlug(client, body.title),
       description: body.description,
       author: body.author,
+      isbn: body.isbn,
       coverImage: body.coverImage,
       category: body.category,
       difficultyLevel: body.difficultyLevel,
@@ -688,7 +689,7 @@ export const createTopic: AppRouteHandler<CreateTopic> = async (c) => {
     .values({
       bookId,
       title: body.title,
-      slug: await generateUniqueTopicSlug(client, body.slug),
+      slug: await generateUniqueTopicSlug(client, body.slug ?? body.title),
       description: body.description,
       orderIndex: body.orderIndex,
       status: 'DRAFT',
@@ -836,7 +837,7 @@ export const createSubtopic: AppRouteHandler<CreateSubtopic> = async (c) => {
     .values({
       topicId,
       title: body.title,
-      slug: await generateUniqueSubtopicSlug(client, body.slug),
+      slug: await generateUniqueSubtopicSlug(client, body.slug ?? body.title),
       description: body.description,
       orderIndex: body.orderIndex,
       status: 'DRAFT',

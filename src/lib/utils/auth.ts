@@ -9,8 +9,17 @@ import { hasRouteAccess, PUBLIC_ROUTES } from '@/middleware/route.level';
 
 const SECURE_AUTH_COOKIE_KEY = 'auth.session_token';
 const AUTH_COOKIE_KEY = 'auth.session_token';
+const STATE_COOKIE_KEY = 'better-auth.state';
 
-export async function sessionAuthenticate(token: string, authApiUrl: string) {
+export async function sessionAuthenticate({
+  token,
+  state,
+  authApiUrl,
+}: {
+  token: string;
+  state?: string;
+  authApiUrl: string;
+}) {
   const isSecure = authApiUrl.startsWith('https://');
 
   const headers: Record<string, string> = {
@@ -21,6 +30,10 @@ export async function sessionAuthenticate(token: string, authApiUrl: string) {
     headers.Cookie = `${SECURE_AUTH_COOKIE_KEY}=${encodeURIComponent(token)}`;
   } else {
     headers.Cookie = `${AUTH_COOKIE_KEY}=${encodeURIComponent(token)}`;
+  }
+
+  if (state) {
+    headers.Cookie += `; ${STATE_COOKIE_KEY}=${encodeURIComponent(state)}`;
   }
 
   const response = await fetch(`${authApiUrl}/api/auth/get-session`, {
@@ -39,13 +52,18 @@ export async function authenticateToken(c: Context<AppBindings>): Promise<AuthSe
   try {
     const secureCookie = getCookie(c, SECURE_AUTH_COOKIE_KEY);
     const regularCookie = getCookie(c, AUTH_COOKIE_KEY);
+    const stateCookie = getCookie(c, STATE_COOKIE_KEY);
     const headerToken = c.req.header('Authorization')?.replace(/^Bearer\s+/i, '') || null;
 
     const token = secureCookie || regularCookie || headerToken;
     if (!token) return null;
 
     const authApiUrl = c.env.AUTH_API_URL;
-    const data = await sessionAuthenticate(token, authApiUrl);
+    const data = await sessionAuthenticate({
+      token,
+      state: stateCookie,
+      authApiUrl,
+    });
 
     if (!data) return null;
 

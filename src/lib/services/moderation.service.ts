@@ -1,5 +1,5 @@
 import type { DrizzleClient } from '@/db';
-import { reviewTasks, books, topics, notes, subtopics, grades, gradeBooks } from '@/db/schema';
+import { reviewTasks, books, topics, notes, subtopics, grades, gradeBooks, notifications } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import type { ILogger } from '../providers/interfaces';
 import type { GamificationService } from './gamification.service';
@@ -181,6 +181,14 @@ export function createModerationService(
 
       await db.update(contentTable).set({ status: 'PUBLISHED' }).where(eq(contentTable.id, task.contentId));
 
+      // Fetch content title for notifications (cheap select)
+      const [contentRow] = await db
+        .select({ title: contentTable.title })
+        .from(contentTable)
+        .where(eq(contentTable.id, task.contentId))
+        .limit(1);
+      const contentTitle = contentRow?.title ?? 'Content';
+
       // Update Typesense with PUBLISHED status
       if (typesenseService) {
         // Fetch full content for upsert
@@ -350,7 +358,26 @@ export function createModerationService(
         cpAwarded: result.cpDelta,
       });
 
-      // TODO: Send notification to author
+      // Notify author (in-app notification)
+      try {
+        await db.insert(notifications).values({
+          userId: task.authorId,
+          type: 'ACHIEVEMENT',
+          title: `${task.contentType.toUpperCase()} approved`,
+          message:
+            feedback && feedback.trim().length > 0
+              ? feedback.trim()
+              : `Your ${task.contentType} "${contentTitle}" was approved.`,
+          referenceId: task.contentId,
+          referenceType: task.contentType,
+        });
+      } catch (error) {
+        logger.error('Failed to create approval notification', {
+          taskId,
+          contentId: task.contentId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
 
       return {
         contentId: task.contentId,
@@ -395,6 +422,14 @@ export function createModerationService(
 
       await db.update(contentTable).set({ status: 'REJECTED' }).where(eq(contentTable.id, task.contentId));
 
+      // Fetch content title for notifications
+      const [contentRow] = await db
+        .select({ title: contentTable.title })
+        .from(contentTable)
+        .where(eq(contentTable.id, task.contentId))
+        .limit(1);
+      const contentTitle = contentRow?.title ?? 'Content';
+
       // Deduct CP for rejected content
       const result = await gamificationService.awardPoints({
         userId: task.authorId,
@@ -410,7 +445,24 @@ export function createModerationService(
         cpDeducted: Math.abs(result.cpDelta),
       });
 
-      // TODO: Send notification to author with feedback
+      // Notify author (in-app notification)
+      try {
+        const suggestionText = suggestions && suggestions.length > 0 ? ` Suggestions: ${suggestions.join(' • ')}` : '';
+        await db.insert(notifications).values({
+          userId: task.authorId,
+          type: 'ACHIEVEMENT',
+          title: `${task.contentType.toUpperCase()} rejected`,
+          message: `Your ${task.contentType} "${contentTitle}" was rejected. Reason: ${reason}.${suggestionText}`,
+          referenceId: task.contentId,
+          referenceType: task.contentType,
+        });
+      } catch (error) {
+        logger.error('Failed to create rejection notification', {
+          taskId,
+          contentId: task.contentId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
 
       return {
         contentId: task.contentId,

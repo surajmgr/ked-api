@@ -1,4 +1,3 @@
-import { insertBookSchema } from '@/db/schema';
 import {
   jsonContentRaw,
   jsonReqContentRequired,
@@ -11,6 +10,8 @@ import { buildParams, cursorPaginationQuerySchema, idParamsSchema } from '@/sche
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Content Creation'];
+
+const difficultyLevelSchema = z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED']);
 
 const contentCreationResponseSchema = z.object({
   success: z.boolean(),
@@ -216,7 +217,15 @@ export const createBook = createRoute({
   request: {
     body: jsonReqContentRequired({
       description: 'Create a new book',
-      schema: insertBookSchema.omit({ status: true }),
+      schema: z.object({
+        title: z.string().min(1).max(255),
+        description: z.string().max(2000).optional(),
+        author: z.string().max(255).optional(),
+        isbn: z.string().max(20).optional(),
+        coverImage: z.string().optional(),
+        category: z.string().max(100).optional(),
+        difficultyLevel: difficultyLevelSchema.optional(),
+      }),
     }),
   },
   responses: {
@@ -238,10 +247,10 @@ export const createTopic = createRoute({
     body: jsonReqContentRequired({
       description: 'Create a new topic',
       schema: z.object({
-        bookId: z.cuid().optional(),
+        bookId: z.cuid2().optional(),
         bookSlug: z.string().min(1).optional(),
         title: z.string().min(1).max(255),
-        slug: z.string().min(1).max(255),
+        slug: z.string().min(1).max(255).optional(),
         description: z.string().max(2000).optional(),
         orderIndex: z.number().int().default(0),
       }),
@@ -267,10 +276,10 @@ export const createSubtopic = createRoute({
     body: jsonReqContentRequired({
       description: 'Create a new subtopic',
       schema: z.object({
-        topicId: z.cuid().optional(),
+        topicId: z.cuid2().optional(),
         topicSlug: z.string().min(1).optional(),
         title: z.string().min(1).max(255),
-        slug: z.string().min(1).max(255),
+        slug: z.string().min(1).max(255).optional(),
         description: z.string().max(2000).optional(),
         orderIndex: z.number().int().default(0),
       }),
@@ -588,8 +597,8 @@ export const saveNoteDraft = createRoute({
         slug: z.string().min(1).max(255),
         content: z.string().min(1),
         contentType: z.enum(['MARKDOWN', 'HTML', 'TEXT']).default('MARKDOWN'),
-        topicId: z.cuid(),
-        subtopicId: z.cuid().optional(),
+        topicId: z.cuid2(),
+        subtopicId: z.cuid2().optional(),
         metadata: z.record(z.string(), z.unknown()).optional(),
       }),
     }),

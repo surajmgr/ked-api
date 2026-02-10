@@ -23,6 +23,8 @@ export const requestLoggerMiddleware: MiddlewareHandler<AppBindings> = async (c,
   const provider = c.var.provider;
   const message = `KED [${method}] ${url} ${status} ${duration}ms`;
 
+  console.log(message, log);
+
   if (status >= 400) {
     provider.logger.error(message, log);
   } else {

@@ -17,8 +17,8 @@ export const askQuestion = createRoute({
       schema: z.object({
         title: z.string().min(10).max(255),
         content: z.string().min(20),
-        topicId: z.cuid(),
-        subtopicId: z.cuid().optional(),
+        topicId: z.cuid2(),
+        subtopicId: z.cuid2().optional(),
         tags: z.array(z.string()).max(5).optional(),
       }),
     }),
@@ -170,9 +170,9 @@ export const listQuestions = createRoute({
   tags,
   request: {
     query: z.object({
-      topicId: z.cuid().optional(),
+      topicId: z.cuid2().optional(),
       topicSlug: z.string().min(1).optional(),
-      subtopicId: z.cuid().optional(),
+      subtopicId: z.cuid2().optional(),
       subtopicSlug: z.string().min(1).optional(),
       solved: z.coerce.boolean().optional(),
       sortBy: z.enum(['recent', 'votes', 'views', 'unanswered']).default('recent'),

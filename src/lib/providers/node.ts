@@ -10,7 +10,7 @@ const defaultRedisOptions: RedisOptions = {
 };
 
 export class NodeDatabaseProvider implements IDatabaseProvider {
-  constructor(private connectionString: string) {}
+  constructor(private connectionString: string) { }
 
   getClient(): DrizzleClient {
     const client = postgres(this.connectionString, {

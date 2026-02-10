@@ -9,6 +9,7 @@ import qa from './qa/qa.index';
 import content from './content/content.index';
 import search from './search/search.index';
 import typesense from './typesense/admin.typesense.index';
+import notifications from './notifications/notifications.index';
 
 export default function configureRoutes(app: AppOpenAPI) {
   const routes = [
@@ -51,6 +52,10 @@ export default function configureRoutes(app: AppOpenAPI) {
     {
       path: '/public/search',
       route: search,
+    },
+    {
+      path: '/notifications',
+      route: notifications,
     },
   ];
 
