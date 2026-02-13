@@ -5,16 +5,16 @@ FROM node:20-alpine AS base
 WORKDIR /app
 
 # Copy package files
-COPY package.json package-lock.json* ./
+COPY package.json pnpm-lock.yaml ./
 
 # Install dependencies (including production ones)
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build step (optional if using tsx in prod/preview, but good for type checking)
-# RUN npm run biome && npm run cf-typegen 
+# RUN pnpm biome && pnpm cf-typegen 
 
 # Expose port
 EXPOSE 3000
@@ -25,4 +25,4 @@ ENV PORT=3000
 
 # Command to run the application using TSX for simplicity, 
 # or you could compile to JS and run with node
-CMD ["npm", "run", "start"]
+CMD ["pnpm", "start"]
