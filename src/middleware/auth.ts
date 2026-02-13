@@ -12,6 +12,8 @@ import { HttpStatusCodes } from '@/lib/utils/status.codes';
 export async function authMiddleware(c: Context, next: Next) {
   const path = c.req.path;
 
+  console.log(path);
+
   // ---------------------
   // Public routes: bypass auth
   // ---------------------

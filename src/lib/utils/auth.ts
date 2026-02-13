@@ -56,6 +56,7 @@ export async function authenticateToken(c: Context<AppBindings>): Promise<AuthSe
     const headerToken = c.req.header('Authorization')?.replace(/^Bearer\s+/i, '') || null;
 
     const token = secureCookie || regularCookie || headerToken;
+    console;
     if (!token) return null;
 
     const authApiUrl = c.env.AUTH_API_URL;

@@ -8,4 +8,3 @@ const notifications = createRouter()
   .openapi(routes.markAllRead, handlers.markAllRead);
 
 export default notifications;
-

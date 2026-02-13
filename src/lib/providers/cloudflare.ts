@@ -1,8 +1,19 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from '@/db/schema';
-import type { ICacheProvider, IDatabaseProvider, IProvider, DrizzleClient, IStack, ILogger } from './interfaces';
+import type {
+  ICacheProvider,
+  IDatabaseProvider,
+  IProvider,
+  DrizzleClient,
+  IStack,
+  ILogger,
+  IEnv,
+  RedisCacheProvider,
+} from './interfaces';
 import { initSentryCloudflare, cloudflareSentryLogger } from '../sentry/sentry.cloudflare';
+import { getAllEnvValues } from './factory';
+import { CommonRedisCacheProvider } from './common';
 
 export class CloudflareDatabaseProvider implements IDatabaseProvider {
   constructor(private hyperdrive: Hyperdrive) {}
@@ -63,14 +74,18 @@ export class CloudflareCacheProvider implements ICacheProvider {
 export class CloudflareProvider implements IProvider {
   db: IDatabaseProvider;
   cache: ICacheProvider;
+  redis: RedisCacheProvider;
   logger: ILogger;
   stack: IStack;
+  env: IEnv;
 
   constructor(env: CloudflareBindings) {
     this.db = new CloudflareDatabaseProvider(env.HYPERDRIVE);
     // Use `caches.default` for the standard Cloudflare cache
     this.cache = new CloudflareCacheProvider(caches.default);
+    this.redis = new CommonRedisCacheProvider(env.REDIS_URL);
     this.stack = 'cloudflare';
+    this.env = getAllEnvValues(env);
 
     // Initialize Sentry with DSN from environment and version metadata
     const sentryDsn = env.SENTRY_DSN;

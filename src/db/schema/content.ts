@@ -7,6 +7,7 @@ import {
   difficultyLevelEnum,
   contentStatusEnum,
   contentTypeEnum,
+  uploadTypeEnum,
 } from './enums';
 import z from 'zod';
 import { nullableTimestampMs, timestampMs } from './utils';
@@ -262,3 +263,22 @@ export const insertNoteSchema = createInsertSchema(notes, {
   fileUrl: () => z.string().url().optional(),
 }).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateNoteSchema = insertNoteSchema.partial();
+
+export const uploads = pgTable(
+  'uploads',
+  {
+    id: cuid2('id').defaultRandom().primaryKey(),
+    userId: text('user_id').notNull(),
+    type: uploadTypeEnum('type').notNull(),
+    fileUrl: text('file_url').notNull(),
+    createdAt: timestampMs('created_at'),
+    updatedAt: timestampMs('updated_at', true),
+  },
+  (table) => [index('idx_upload_user').on(table.userId), index('idx_upload_type').on(table.type)],
+);
+
+export const selectUploadSchema = createSelectSchema(uploads);
+export const insertUploadSchema = createInsertSchema(uploads, {
+  fileUrl: (s) => s.url(),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateUploadSchema = insertUploadSchema.partial();

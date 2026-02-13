@@ -1,9 +1,22 @@
 import { CloudflareProvider } from './cloudflare';
 import { NodeProvider } from './node';
-import type { IProvider } from './interfaces';
+import type { IEnv, IProvider } from './interfaces';
 
 // Singleton instance for Node.js provider
 let nodeProviderInstance: IProvider | null = null;
+
+export const ENV_KEYS = [
+  'DATABASE_URL',
+  'REDIS_URL',
+  'AUTH_API_URL',
+  'TRUSTED_ORIGINS',
+  'SENTRY_DSN',
+  'TYPESENSE_URL',
+  'TYPESENSE_API_KEY',
+  'CLOUDINARY_CLOUD_NAME',
+  'CLOUDINARY_API_KEY',
+  'CLOUDINARY_API_SECRET',
+] as const;
 
 export function getEnvValue(env: CloudflareBindings | NodeJS.ProcessEnv, key: string, isRequired = true) {
   if ('HYPERDRIVE' in env && typeof (env as CloudflareBindings).HYPERDRIVE === 'object') {
@@ -14,6 +27,19 @@ export function getEnvValue(env: CloudflareBindings | NodeJS.ProcessEnv, key: st
     throw new Error(`${key} is required`);
   }
   return value;
+}
+
+export function getAllEnvValues(env: CloudflareBindings | NodeJS.ProcessEnv) {
+  const envValues = {} as IEnv;
+
+  for (const key of ENV_KEYS) {
+    const value = getEnvValue(env, key);
+    if (value) {
+      envValues[key] = value;
+    }
+  }
+
+  return envValues;
 }
 
 export function createProvider(env: CloudflareBindings | NodeJS.ProcessEnv): IProvider {
@@ -29,18 +55,10 @@ export function createProvider(env: CloudflareBindings | NodeJS.ProcessEnv): IPr
     return nodeProviderInstance;
   }
 
-  // Use process.env or the passed env object if it resembles ProcessEnv
-  const databaseUrl = getEnvValue(env, 'DATABASE_URL');
-  const redisUrl = getEnvValue(env, 'REDIS_URL');
-  const sentryDsn = getEnvValue(env, 'SENTRY_DSN');
-
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL is required for Node.js provider');
-  }
-  if (!redisUrl) {
-    throw new Error('REDIS_URL is required for Node.js provider');
-  }
-
-  nodeProviderInstance = new NodeProvider(databaseUrl, redisUrl, sentryDsn);
+  const envValues = getAllEnvValues(env);
+  console.log({
+    envValues,
+  });
+  nodeProviderInstance = new NodeProvider(envValues);
   return nodeProviderInstance;
 }

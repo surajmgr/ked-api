@@ -10,6 +10,7 @@ import content from './content/content.index';
 import search from './search/search.index';
 import typesense from './typesense/admin.typesense.index';
 import notifications from './notifications/notifications.index';
+import upload from './upload/upload.index';
 
 export default function configureRoutes(app: AppOpenAPI) {
   const routes = [
@@ -56,6 +57,10 @@ export default function configureRoutes(app: AppOpenAPI) {
     {
       path: '/notifications',
       route: notifications,
+    },
+    {
+      path: '/upload',
+      route: upload,
     },
   ];
 

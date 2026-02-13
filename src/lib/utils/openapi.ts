@@ -3,6 +3,10 @@ import { Scalar } from '@scalar/hono-api-reference';
 import packageJson from '@/../package.json';
 
 export default function configureOpenAPI(app: AppOpenAPI) {
+  app.get('/test', (c) => {
+    return c.text('Hello World');
+  });
+
   app.doc('/doc', {
     openapi: '3.0.0',
     info: {
@@ -26,7 +30,7 @@ export default function configureOpenAPI(app: AppOpenAPI) {
         securitySchemes: {
           cookieAuth: {
             type: 'apiKey',
-            name: '__Secure-better-auth.session_token',
+            name: 'auth.session_token',
             in: 'cookie',
           },
           apiKeyHeader: {

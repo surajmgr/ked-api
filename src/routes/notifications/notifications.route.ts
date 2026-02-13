@@ -82,4 +82,3 @@ export const markAllRead = createRoute({
   },
 });
 export type MarkAllRead = typeof markAllRead;
-

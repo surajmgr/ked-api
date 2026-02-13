@@ -28,6 +28,7 @@ export * from './user-profiles';
 export * from './contribution-ledger';
 export * from './review-tasks';
 export * from './user-progress';
+export * from './uploads';
 
 // Re-export commonly used types for convenience
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';

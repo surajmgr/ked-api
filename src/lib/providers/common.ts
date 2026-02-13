@@ -1,36 +1,11 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import type { RedisCacheProvider } from './interfaces';
 import Redis, { type RedisOptions } from 'ioredis';
-import * as schema from '@/db/schema';
-import type {
-  ICacheProvider,
-  IDatabaseProvider,
-  IProvider,
-  DrizzleClient,
-  IStack,
-  ILogger,
-  IEnv,
-  RedisCacheProvider,
-} from './interfaces';
-import { initSentryNode, nodeSentryLogger } from '../sentry/sentry.node';
-import { CommonRedisCacheProvider } from './common';
 
 const defaultRedisOptions: RedisOptions = {
   keyPrefix: 'ked:',
 };
 
-export class NodeDatabaseProvider implements IDatabaseProvider {
-  constructor(private connectionString: string) {}
-
-  getClient(): DrizzleClient {
-    const client = postgres(this.connectionString, {
-      max: 10, // Default pool size for Node
-    });
-    return drizzle({ client, schema });
-  }
-}
-
-export class NodeCacheProvider implements ICacheProvider {
+export class CommonRedisCacheProvider implements RedisCacheProvider {
   private redis: Redis;
 
   constructor(redisUrl: string) {
@@ -76,28 +51,19 @@ export class NodeCacheProvider implements ICacheProvider {
     }
   }
 
+  async incr(key: string, value?: number): Promise<number> {
+    return await this.redis.incrby(key, value || 1);
+  }
+
+  async decr(key: string, value?: number): Promise<number> {
+    return await this.redis.decrby(key, value || 1);
+  }
+
   async delete(key: string): Promise<void> {
     await this.redis.del(key);
   }
-}
 
-export class NodeProvider implements IProvider {
-  db: IDatabaseProvider;
-  cache: ICacheProvider;
-  redis: RedisCacheProvider;
-  logger: ILogger;
-  stack: IStack;
-  env: IEnv;
-
-  constructor(env: IEnv) {
-    this.db = new NodeDatabaseProvider(env.DATABASE_URL);
-    this.cache = new NodeCacheProvider(env.REDIS_URL);
-    this.redis = new CommonRedisCacheProvider(env.REDIS_URL);
-    this.stack = 'node';
-    this.env = env;
-
-    // Initialize Sentry if DSN is provided
-    initSentryNode(env.SENTRY_DSN);
-    this.logger = nodeSentryLogger;
+  async expire(key: string, ttl: number): Promise<void> {
+    await this.redis.expire(key, ttl);
   }
 }
